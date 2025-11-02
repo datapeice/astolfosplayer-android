@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.dn0ne.player.setup.presentation.components.AudioPermissionPage
 import com.dn0ne.player.setup.presentation.components.MusicScanPage
+import com.dn0ne.player.setup.presentation.components.ServerSetupPage
 import com.dn0ne.player.setup.presentation.components.WelcomePage
 
 @Composable
@@ -49,6 +50,27 @@ fun SetupScreen(
         composable<SetupPage.Welcome> {
             WelcomePage(
                 onGetStartedClick = {
+                    navController.navigate(SetupPage.ServerSetup)
+                },
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(color = MaterialTheme.colorScheme.background)
+                    .safeDrawingPadding()
+            )
+        }
+        composable<SetupPage.ServerSetup> {
+            ServerSetupPage(
+                onLoginClick = { server, login, password ->
+                    // Вызвать функцию из ViewModel для логина
+                    viewModel.onLogin(server, login, password)
+                    // И перейти на следующий экран
+                    navController.navigate(SetupPage.AudioPermission)
+                },
+                onRegisterClick = { server, login, password ->
+                    // Вызвать функцию из ViewModel для регистрации
+                    viewModel.onRegister(server, login, password)
+                    // Можно остаться на том же экране и показать сообщение
+                    // или перейти дальше, если регистрация автоматическая
                     navController.navigate(SetupPage.AudioPermission)
                 },
                 modifier = modifier

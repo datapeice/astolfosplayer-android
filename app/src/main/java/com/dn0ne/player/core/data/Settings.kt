@@ -1,6 +1,7 @@
 package com.dn0ne.player.core.data
 
 import android.content.Context
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.update
 
 class Settings(context: Context) {
     private val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    private val serverAddressKey = "server-address"
 
     private val handleAudioFocusKey = "audio-focus"
 
@@ -55,7 +58,14 @@ class Settings(context: Context) {
     private val jumpToBeginningKey = "jump-to-beginning"
 
     private val gridPlaylistsKey = "grid-playlists"
-
+    var serverAddress: String
+        get() = sharedPreferences.getString(serverAddressKey, "") ?: ""
+        set(value) {
+            with(sharedPreferences.edit()) {
+                putString(serverAddressKey, value)
+                apply()
+            }
+        }
     var handleAudioFocus: Boolean
         get() = sharedPreferences.getBoolean(handleAudioFocusKey, true)
         set(value) {

@@ -62,6 +62,33 @@ import org.koin.androidx.viewmodel.ext.android.getViewModel
 
 class MainActivity : ComponentActivity() {
 
+    /**
+     * Called when the activity is first created. This is where most of the app's initialization
+     * occurs.
+     *
+     * This method performs the following key tasks:
+     * 1.  **UI Setup**: Installs the splash screen and enables edge-to-edge display for a modern UI.
+     * 2.  **Image Loading**: Initializes the Coil `SingletonImageLoader` with a custom memory cache
+     *     and crossfade transitions.
+     * 3.  **Permissions Handling**: Sets up `ActivityResultLauncher`s to request necessary permissions
+     *     like audio access (`READ_MEDIA_AUDIO` or `READ_EXTERNAL_STORAGE`) and write access for
+     *     older Android versions (`WRITE_EXTERNAL_STORAGE`). It also handles one-time write
+     *     permission for Android Q and above.
+     * 4.  **File/Media Pickers**: Registers `ActivityResultLauncher`s for picking various media types:
+     *     - Cover art (images)
+     *     - Music folders (document tree)
+     *     - Lyrics files (.lrc, .txt)
+     *     - Playlists (.m3u)
+     *     The results from these pickers are handled via Kotlin `Channel`s.
+     * 5.  **Navigation**: Determines the initial screen (`Setup` or `Player`) based on whether the
+     *     app has been set up and has the required permissions. It then sets up the `NavHost` with
+     *     the corresponding composable destinations.
+     * 6.  **ViewModel and Media Controller Setup**: Initializes `SetupViewModel` and `PlayerViewModel`.
+     *     For the `PlayerScreen`, it establishes a connection to the `PlaybackService` via a
+     *     `MediaController`.
+     * 7.  **Event Observation**: Sets up observers for various events, such as pending metadata writes,
+     *     picked files, and theme changes, to update the UI and perform background tasks accordingly.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installSplashScreen()

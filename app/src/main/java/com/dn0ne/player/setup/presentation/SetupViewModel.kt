@@ -40,6 +40,31 @@ class SetupViewModel(
         started = SharingStarted.WhileSubscribed(5000L),
         initialValue = emptySet()
     )
+// Вставьте этот код внутрь класса SetupViewModel
+
+// --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
+
+    fun onLogin(serverAddress: String, login: String, password: String) {
+        // TODO: Реализовать логику входа
+        // 1. Сохранить адрес сервера
+        settings.serverAddress = serverAddress
+        // 2. Отправить запрос на сервер для аутентификации
+        // 3. В случае успеха сохранить токен/сессию
+        // 4. В случае ошибки показать сообщение пользователю (через State/Flow)
+        println("Login attempt with: server=$serverAddress, login=$login")
+    }
+
+    fun onRegister(serverAddress: String, login: String, password: String) {
+        // TODO: Реализовать логику регистрации
+        // 1. Сохранить адрес сервера
+        settings.serverAddress = serverAddress
+        // 2. Отправить запрос на сервер для создания нового пользователя
+        // 3. Обработать ответ (успех/ошибка)
+        // 4. Возможно, автоматически войти в систему после успешной регистрации
+        println("Register attempt with: server=$serverAddress, login=$login")
+    }
+
+// --- КОНЕЦ БЛОКА ---
 
     fun onScanFoldersClick() {
         _foldersWithAudio.update {
