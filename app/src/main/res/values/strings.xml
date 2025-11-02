@@ -78,7 +78,7 @@
     <string name="scroll_to_top">Scroll to top</string>
     <string name="scroll_to_current_track">Scroll to current track</string>
 
-    <!-- Expanded player sheet -->
+    <!-- Expanded com.datapeice.astolfoplayer sheet -->
     <string name="close_player_sheet">Close player sheet</string>
     <string name="playback_mode_toggle">Toggle playback mode</string>
     <string name="show_lyrics">Show lyrics</string>

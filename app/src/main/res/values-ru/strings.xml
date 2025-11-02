@@ -66,7 +66,7 @@
     <string name="scroll_to_top">Прокрутить к началу</string>
     <string name="scroll_to_current_track">Прокрутить до текущего трека</string>
 
-    <!-- Expanded player sheet -->
+    <!-- Expanded com.datapeice.astolfoplayer sheet -->
     <string name="close_player_sheet">Свернуть плеер</string>
     <string name="playback_mode_toggle">Переключить режим воспроизведения</string>
     <string name="show_lyrics">Показать текст трека</string>
