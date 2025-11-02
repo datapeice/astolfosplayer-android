@@ -58,26 +58,44 @@ fun SetupScreen(
                     .safeDrawingPadding()
             )
         }
+// В файле SetupScreen.kt
+
         composable<SetupPage.ServerSetup> {
+            val serverError by viewModel.serverUrlError.collectAsState()
+            // --- ПОЛУЧАЕМ ЗНАЧЕНИЯ ДЛЯ ПОЛЕЙ ИЗ VIEWMODEL ---
+            val serverAddress by viewModel.serverAddress.collectAsState()
+            val login by viewModel.login.collectAsState()
+            val password by viewModel.password.collectAsState()
+
             ServerSetupPage(
-                onLoginClick = { server, login, password ->
-                    // Вызвать функцию из ViewModel для логина
-                    viewModel.onLogin(server, login, password)
-                    // И перейти на следующий экран
-                    navController.navigate(SetupPage.AudioPermission)
+                // Передаем значения в UI
+                serverAddress = serverAddress,
+                login = login,
+                password = password,
+
+                // Передаем функции-обработчики из ViewModel
+                onServerAddressChange = viewModel::onServerAddressChanged,
+                onLoginChange = viewModel::onLoginChanged,
+                onPasswordChange = viewModel::onPasswordChanged,
+
+                // Обновляем вызов onLoginClick
+                onLoginClick = {
+                    if (viewModel.onLogin(serverAddress, login, password)) {
+                        navController.navigate(SetupPage.AudioPermission)
+                    }
                 },
-                onRegisterClick = { server, login, password ->
-                    // Вызвать функцию из ViewModel для регистрации
-                    viewModel.onRegister(server, login, password)
-                    // Можно остаться на том же экране и показать сообщение
-                    // или перейти дальше, если регистрация автоматическая
-                    navController.navigate(SetupPage.AudioPermission)
+                onRegisterClick = {
+                    if (viewModel.onRegister(serverAddress, login, password)) {
+                        navController.navigate(SetupPage.AudioPermission)
+                    }
                 },
+                errorMessage = serverError,
                 modifier = modifier
                     .fillMaxSize()
                     .background(color = MaterialTheme.colorScheme.background)
                     .safeDrawingPadding()
             )
+
         }
 
         composable<SetupPage.AudioPermission> {

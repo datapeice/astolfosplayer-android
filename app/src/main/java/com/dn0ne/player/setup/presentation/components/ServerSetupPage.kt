@@ -23,10 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dn0ne.player.R
 
 /**
  * Экран для настройки сервера, входа в систему или регистрации.
@@ -40,16 +42,16 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ServerSetupPage(
     // Изменяем колбэки, чтобы они соответствовали новым кнопкам
-    onLoginClick: (String, String, String) -> Unit,
-    onRegisterClick: (String, String, String) -> Unit,
+    serverAddress: String,login: String,
+    password: String,
+    onServerAddressChange: (String) -> Unit,
+    onLoginChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onLoginClick: () -> Unit,
+    onRegisterClick: () -> Unit,
+    errorMessage: String?, // <-- ДОБАВЬТЕ ЭТОТ ПАРАМЕТР
     modifier: Modifier = Modifier
 ) {
-    // Состояния для хранения значений текстовых полей
-    var serverAddress by remember { mutableStateOf("") }
-    var login by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    // Проверяем, все ли поля заполнены, чтобы активировать кнопки
     val areFieldsFilled = serverAddress.isNotBlank() && login.isNotBlank() && password.isNotBlank()
 
     Box(
@@ -64,7 +66,7 @@ fun ServerSetupPage(
         ) {
             // Заголовок страницы
             Text(
-                text = "Настройка сервера", // Замените на stringResource
+                text = stringResource(R.string.server_setting), // Замените на stringResource
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
@@ -74,20 +76,29 @@ fun ServerSetupPage(
             // Поле для адреса сервера
             OutlinedTextField(
                 value = serverAddress,
-                onValueChange = { serverAddress = it },
-                label = { Text("Адрес сервера (например, 192.168.1.100)") }, // Замените на stringResource
+                onValueChange = onServerAddressChange,
+                label = { Text(stringResource(R.string.server_address_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                isError = errorMessage != null
+
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+            }
             // Поле для логина
             OutlinedTextField(
                 value = login,
-                onValueChange = { login = it },
-                label = { Text("Логин") }, // Замените на stringResource
+                onValueChange = onLoginChange,
+                label = { Text(stringResource(R.string.login_string)) }, // Замените на stringResource
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
@@ -98,8 +109,8 @@ fun ServerSetupPage(
             // Поле для пароля
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
-                label = { Text("Пароль") }, // Замените на stringResource
+                onValueChange = onPasswordChange,
+                label = { Text(stringResource(R.string.register_string)) }, // Замените на stringResource
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), // Скрывает символы пароля
@@ -107,31 +118,32 @@ fun ServerSetupPage(
             )
         }
 
+
         // Ряд с кнопками внизу экрана
         Row(
             modifier = Modifier
-                .align(Alignment.BottomCenter) // Размещаем по центру внизу
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+                .align(Alignment.BottomEnd) // Выравниваем весь ряд по нижнему правому краю
+                .fillMaxWidth(), // Растягиваем на всю ширину
+            horizontalArrangement = Arrangement.SpaceBetween, // <<< КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: расталкивает элементы по краям
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Кнопка "Регистрация"
-            TextButton(
-                onClick = { onRegisterClick(serverAddress, login, password) },
-                enabled = areFieldsFilled // Кнопка активна, если все поля заполнены
+            // Кнопка "Регистрация" слева
+            Button( // <<< ИЗМЕНЕНО: теперь это тоже Button
+                onClick = onRegisterClick,
+                enabled = areFieldsFilled
             ) {
-                Text("Регистрация") // Замените на stringResource
+                Text(stringResource(R.string.register_string)) // Замените на stringResource
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Кнопка "Логин" (основная)
+            // Кнопка "Логин" справа
             Button(
-                onClick = { onLoginClick(serverAddress, login, password) },
-                enabled = areFieldsFilled // Кнопка активна, если все поля заполнены
+                onClick = onLoginClick,
+                enabled = areFieldsFilled
             ) {
-                Text("Логин") // Замените на stringResource
+                Text(stringResource(R.string.login_string)) // Замените на stringResource
             }
         }
+
+
     }
 }

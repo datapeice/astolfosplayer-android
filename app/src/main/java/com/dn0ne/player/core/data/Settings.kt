@@ -16,8 +16,10 @@ import kotlinx.coroutines.flow.update
 
 class Settings(context: Context) {
     private val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-
+    // Astolfo's Config
     private val serverAddressKey = "server-address"
+    private val loginKey = "login"
+    private val passwordKey = "password"
 
     private val handleAudioFocusKey = "audio-focus"
 
@@ -66,6 +68,26 @@ class Settings(context: Context) {
                 apply()
             }
         }
+
+    var login : String
+        get() = sharedPreferences.getString(loginKey, "") ?: ""
+        set(value) {
+            with(sharedPreferences.edit()) {
+                putString(loginKey, value)
+                apply()
+            }
+        }
+
+    var password: String
+        get() = sharedPreferences.getString(passwordKey, "") ?: ""
+        set(value) {
+            with(sharedPreferences.edit()) {
+                putString(passwordKey, value)
+                apply()
+            }
+        }
+
+
     var handleAudioFocus: Boolean
         get() = sharedPreferences.getBoolean(handleAudioFocusKey, true)
         set(value) {

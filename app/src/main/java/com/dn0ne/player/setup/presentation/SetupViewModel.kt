@@ -15,13 +15,53 @@ import kotlinx.coroutines.flow.update
 class SetupViewModel(
     private val setupState: SetupState,
     private val getFoldersWithAudio: () -> Set<String>,
+
     val settings: Settings,
     val musicScanner: MusicScanner
 ) : ViewModel() {
+    private val _login = MutableStateFlow(settings.login)
+    val login = _login.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000L),
+        initialValue = settings.login
+    )
+
+    private val _password = MutableStateFlow(settings.password)
+    val password = _password.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000L),
+        initialValue = settings.password
+    )
+
+    // Также сделаем StateFlow для адреса сервера, чтобы он тоже не пропадал при вводе
+    private val _serverAddress = MutableStateFlow(settings.serverAddress)
+    val serverAddress = _serverAddress.stateIn(
+        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000L),
+        initialValue = settings.serverAddress
+    )
+
+    // --- ДОБАВЬТЕ ЭТИ ФУНКЦИИ-ОБРАБОТЧИКИ ---
+    fun onServerAddressChanged(address: String) {
+        _serverAddress.update { address }
+    }
+
+    fun onLoginChanged(login: String) {
+        _login.update { login }}
+
+    fun onPasswordChanged(password: String) {
+        _password.update { password }
+    }
+    private val _serverUrlError = MutableStateFlow<String?>(null)
+
     val startDestination: SetupPage by mutableStateOf(
         if (!setupState.isComplete) {
             SetupPage.Welcome
         } else SetupPage.AudioPermission
+    )
+    val serverUrlError = _serverUrlError.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000L),
+        initialValue = null
     )
 
     private val _isAudioPermissionGranted = MutableStateFlow(false)
@@ -40,32 +80,51 @@ class SetupViewModel(
         started = SharingStarted.WhileSubscribed(5000L),
         initialValue = emptySet()
     )
-// Вставьте этот код внутрь класса SetupViewModel
 
-// --- НАЧАЛО БЛОКА ДЛЯ КОПИРОВАНИЯ ---
 
-    fun onLogin(serverAddress: String, login: String, password: String) {
-        // TODO: Реализовать логику входа
-        // 1. Сохранить адрес сервера
-        settings.serverAddress = serverAddress
-        // 2. Отправить запрос на сервер для аутентификации
-        // 3. В случае успеха сохранить токен/сессию
-        // 4. В случае ошибки показать сообщение пользователю (через State/Flow)
-        println("Login attempt with: server=$serverAddress, login=$login")
+    private fun isServerAddressValid(address: String): Boolean {
+        // Regex: http:// + (цифры/точки для IP) + : + (цифры для порта)
+        val urlRegex = Regex("""^http://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})$""")
+        return urlRegex.matches(address)
     }
 
-    fun onRegister(serverAddress: String, login: String, password: String) {
-        // TODO: Реализовать логику регистрации
-        // 1. Сохранить адрес сервера
-        settings.serverAddress = serverAddress
-        // 2. Отправить запрос на сервер для создания нового пользователя
-        // 3. Обработать ответ (успех/ошибка)
-        // 4. Возможно, автоматически войти в систему после успешной регистрации
-        println("Register attempt with: server=$serverAddress, login=$login")
+    // Обратите внимание, что я изменил возвращаемый тип функций на Boolean
+    fun onLogin(serverAddress: String, login: String, password: String): Boolean {
+        _serverUrlError.update { null }
+
+        if (isServerAddressValid(serverAddress)) {
+            // Адрес верный, сохраняем и пытаемся войти
+            settings.serverAddress = serverAddress
+            settings.login = login;
+            settings.password = password;
+            println("Login attempt with: server=$serverAddress, login=$login")
+            // TODO: Реализовать логику входа (отправка запроса на сервер)
+            return true // Возвращаем true, чтобы UI мог перейти на следующий экран
+        } else {
+            // Адрес неверный, сообщаем об ошибке
+            _serverUrlError.update { "Неверный формат адреса. Пример: http://1.2.3.4:8000" }
+            return false // Возвращаем false, чтобы UI НЕ переходил дальше
+        }
     }
 
-// --- КОНЕЦ БЛОКА ---
+    fun onRegister(serverAddress: String, login: String, password: String): Boolean {
+        // Сбрасываем предыдущую ошибку
+        _serverUrlError.update { null }
 
+        if (isServerAddressValid(serverAddress)) {
+            // Адрес верный, сохраняем и пытаемся зарегистрироваться
+            settings.serverAddress = serverAddress
+            settings.login = login;
+            settings.password = password;
+            println("Register attempt with: server=$serverAddress, login=$login")
+            // TODO: Реализовать логику регистрации
+            return true
+        } else {
+            // Адрес неверный, сообщаем об ошибке
+            _serverUrlError.update { "Неверный формат адреса. Пример: http://1.2.3.4:8000" }
+            return false
+        }
+    }
     fun onScanFoldersClick() {
         _foldersWithAudio.update {
             getFoldersWithAudio()

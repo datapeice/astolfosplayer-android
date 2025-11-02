@@ -9,7 +9,7 @@ plugins {
 val splitApks = !project.hasProperty("noSplits")
 val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';').orEmpty()
 val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86" to 3, "x86_64" to 4)
-
+val ktorVersion = "2.3.6"
 android {
     namespace = "com.dn0ne.player"
     compileSdk = 35
@@ -105,6 +105,12 @@ tasks.withType<com.android.build.gradle.internal.tasks.CompileArtProfileTask> {
 }
 
 dependencies {
+    implementation("io.ktor:ktor-client-core:${ktorVersion}")
+    implementation("io.ktor:ktor-client-cio:${ktorVersion}")
+    implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
+    implementation("io.ktor:ktor-client-logging:${ktorVersion}")
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

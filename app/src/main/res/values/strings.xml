@@ -341,4 +341,8 @@
 
     <string name="copy_error">Copy error</string>
     <string name="select_all">Select all</string>
+    <string name="server_address_hint">Server\'s adress</string>
+    <string name="server_setting">Server Setting</string>
+    <string name="login_string">Login</string>
+    <string name="register_string">Register</string>
 </resources>
