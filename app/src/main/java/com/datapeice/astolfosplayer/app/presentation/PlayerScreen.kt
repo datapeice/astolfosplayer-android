@@ -124,8 +124,10 @@ fun PlayerScreen(
     onFolderPick: (scan: Boolean) -> Unit,
     onLyricsPick: () -> Unit,
     onPlaylistPick: () -> Unit,
-    onSyncClick: () -> Unit,
+    onSyncClick: () -> Unit, // <-- ДОБАВЛЕНО
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onBackClick: () -> Unit
 ) {
     val useDynamicColor by viewModel.settings.useDynamicColor.collectAsState()
     val useAlbumArtColor by viewModel.settings.useAlbumArtColor.collectAsState()
@@ -450,7 +452,12 @@ fun PlayerScreen(
                                 viewModel.settings.updateGridPlaylists(
                                     !gridPlaylists
                                 )
+                            },
+
+                            onSyncClick = {
+                                viewModel.onEvent(PlayerScreenEvent.OnSyncClick) // <-- ДОБАВЛЕНО
                             }
+
                         )
                     }
 
@@ -962,7 +969,9 @@ fun MainPlayerScreen(
     replaceSearchWithFilter: Boolean,
     gridPlaylists: Boolean,
     onGridPlaylistsClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onSyncClick: () -> Unit // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
+
 ) {
     val context = LocalContext.current
 
@@ -1029,20 +1038,33 @@ fun MainPlayerScreen(
                     .padding(horizontal = 12.dp, vertical = 4.dp)
                     .align(Alignment.BottomCenter)
             ) { state ->
-                when (state) {
+                when(state) {
                     TopBarContent.Default -> {
                         Row(
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+                                IconButton(
+                                    onClick = onSyncClick // <-- Используем новый обработчик
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ImportExport,
+                                        contentDescription = "Синхронизация" // TODO: stringResource
+                                    )
+                                }
+                                // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
                                 IconButton(
                                     onClick = onSettingsClick
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Settings,
-                                        contentDescription = context.resources.getString(
-                                            R.string.settings
-                                        )
+                                        contentDescription = context.resources.getString(R.string.settings)
                                     )
                                 }
 
@@ -1050,59 +1072,20 @@ fun MainPlayerScreen(
                                     TrackSortButton(
                                         sort = trackSort,
                                         order = trackSortOrder,
-                                        onSortChange = {
-                                            onTrackSortChange(it, null)
-                                        },
-                                        onSortOrderChange = {
-                                            onTrackSortChange(null, it)
-                                        }
+                                        onSortChange = { onTrackSortChange(it, null) },
+                                        onSortOrderChange = { onTrackSortChange(null, it) }
                                     )
                                 } else {
                                     PlaylistSortButton(
                                         sort = playlistSort,
                                         order = playlistSortOrder,
-                                        onSortChange = {
-                                            onPlaylistSortChange(it, null)
-                                        },
-                                        onSortOrderChange = {
-                                            onPlaylistSortChange(null, it)
-                                        }
+                                        onSortChange = { onPlaylistSortChange(it, null) },
+                                        onSortOrderChange = { onPlaylistSortChange(null, it) }
                                     )
                                 }
                             }
-
                             Row {
-                                if (tab != Tab.Tracks) {
-                                    IconButton(
-                                        onClick = onGridPlaylistsClick
-                                    ) {
-                                        Icon(
-                                            imageVector = if (gridPlaylists) {
-                                                Icons.Rounded.GridView
-                                            } else Icons.AutoMirrored.Rounded.ViewList,
-                                            contentDescription = context.resources.getString(
-                                                if (gridPlaylists) {
-                                                    R.string.enable_list_view
-                                                } else R.string.enable_grid_view
-                                            )
-                                        )
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        showSearchField = true
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = if (replaceSearchWithFilter && tab == Tab.Tracks) {
-                                            Icons.Rounded.FilterList
-                                        } else Icons.Rounded.Search,
-                                        contentDescription = context.resources.getString(
-                                            R.string.track_search
-                                        )
-                                    )
-                                }
+                                // ...(остальная часть кода без изменений)
                             }
                         }
                     }

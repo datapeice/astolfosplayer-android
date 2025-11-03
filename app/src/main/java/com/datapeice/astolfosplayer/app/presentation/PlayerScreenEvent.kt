@@ -57,6 +57,7 @@ sealed interface PlayerScreenEvent {
     data class OnPlaylistReorder(val trackList: List<Track>, val playlist: Playlist): PlayerScreenEvent
 
     data object OnSettingsClick: PlayerScreenEvent
+    data object OnSyncClick: PlayerScreenEvent // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
     data object OnCloseSettingsClick: PlayerScreenEvent
     data object OnScanFoldersClick: PlayerScreenEvent
 

@@ -117,6 +117,7 @@ val playerModule = module {
             trackRepository = get(),
             metadataProvider = get(),
             lyricsProvider = get(),
+            syncApi = get(),
             lyricsRepository = get(),
             lyricsReader = get(),
             playlistRepository = get(),

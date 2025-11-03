@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.get
 import org.koin.androidx.viewmodel.ext.android.getViewModel
+import com.datapeice.astolfosplayer.app.presentation.PlayerScreenEvent // <-- ДОБАВЬТЕ ЭТОТ ИМПОРТ
 
 class MainActivity : ComponentActivity() {
 
@@ -310,6 +311,12 @@ class MainActivity : ComponentActivity() {
                                             )
                                         )
                                     },
+                                    onSettingsClick = {
+                                        viewModel.onEvent(PlayerScreenEvent.OnSettingsClick)
+                                    },
+                                    onSyncClick = {
+                                        viewModel.onEvent(PlayerScreenEvent.OnSyncClick)
+                                    },
                                     onFolderPick = { shouldScan ->
                                         shouldScanPickedFolder = shouldScan
                                         pickFolder.launch(null)
@@ -320,7 +327,12 @@ class MainActivity : ComponentActivity() {
                                     onPlaylistPick = {
                                         playlistPicker.launch(arrayOf("audio/x-mpegurl"))
                                     },
-                                    modifier = Modifier.fillMaxSize()
+                                    onBackClick = { // <-- ДОБАВЛЕНО
+                                        onBackPressedDispatcher.onBackPressed()
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+
+
                                 )
                             }
 
@@ -383,7 +395,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                     return@ObserveAsEvents
                                 }
-                                viewModel.onFolderPicked(path)
+                                    //viewModel.onFolderPicked(path)
                             }
 
                             ObserveAsEvents(pickedLyricsFileContentChannel.receiveAsFlow()) { lyrics ->

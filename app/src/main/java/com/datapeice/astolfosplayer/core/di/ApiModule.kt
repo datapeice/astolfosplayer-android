@@ -16,5 +16,6 @@ val apiModule = module {
     single<TrackApi> { KtorTrackApi(httpClient = get(), settings = get()) }
 
     // API для синхронизации
-    single<SyncApi> { KtorSyncApi(httpClient = get(), settings = get()) }
+    // API для синхронизации
+    single<SyncApi> { KtorSyncApi(httpClient = get(), settings = get(), trackApi = get()) }
 }

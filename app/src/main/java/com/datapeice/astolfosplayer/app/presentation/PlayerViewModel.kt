@@ -39,6 +39,7 @@ import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.InfoSe
 import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.LyricsControlSheetState
 import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.ManualInfoEditSheetState
 import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.TrackInfoSheetState
+import com.datapeice.astolfosplayer.core.api.SyncApi
 import com.datapeice.astolfosplayer.core.data.MusicScanner
 import com.datapeice.astolfosplayer.core.data.Settings
 import com.datapeice.astolfosplayer.setup.presentation.SetupViewModel
@@ -62,6 +63,7 @@ class PlayerViewModel(
     private val trackRepository: TrackRepository,
     private val metadataProvider: MetadataProvider,
     private val lyricsProvider: LyricsProvider,
+    private val syncApi: SyncApi,
     private val lyricsRepository: LyricsRepository,
     private val lyricsReader: LyricsReader,
     private val playlistRepository: PlaylistRepository,
@@ -373,6 +375,7 @@ class PlayerViewModel(
     fun onEvent(event: PlayerScreenEvent) {
 
         when (event) {
+            is PlayerScreenEvent.OnSyncClick -> onSyncClick()
             is OnTrackClick -> {
                 player?.let { player ->
                     if (_playbackState.value.playlist != event.playlist) {
@@ -1286,6 +1289,38 @@ class PlayerViewModel(
             }
         }
     }
+    // НЕПРАВИЛЬНО
+    // --- НАЧНИТЕ ЗАМЕНУ ОТСЮДА ---
+    private fun onSyncClick() {
+        viewModelScope.launch { // 1. Стартуем в главном потоке
+            try {
+                // 2. Используем правильный android.os.Environment
+                val musicFolder = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_MUSIC
+                )
+
+                // 3. Выполняем тяжелую работу в фоновом потоке
+                withContext(Dispatchers.IO) {
+                    syncApi.performSync(musicFolder) { message ->
+                        // 4. Для обновления UI возвращаемся в главный поток
+                        launch(Dispatchers.Main) {
+                            SnackbarController.sendEvent(SnackbarEvent(message = R.string.synchronization_started))
+                            Log.d("SyncProgress", message)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                SnackbarController.sendEvent(
+                    SnackbarEvent(
+                        message = R.string.synchronization_error, // <-- Используем ID ресурса
+                    )
+                )
+            }
+
+        }
+    }
+
 
     fun playTrackFromUri(uri: Uri) {
         viewModelScope.launch {
@@ -1300,14 +1335,14 @@ class PlayerViewModel(
             )
         }
     }
-
-    fun onFolderPicked(path: String) {
-        if (settings.isScanModeInclusive.value) {
-            settings.updateExtraScanFolders(settings.extraScanFolders.value + path)
-        } else {
-            settings.updateExcludedScanFolders(settings.extraScanFolders.value + path)
-        }
-    }
+//
+//    fun onFolderPicked(path: String) {
+//        if (settings.isScanModeInclusive.value) {
+//            settings.updateExtraScanFolders(settings.extraScanFolders.value + path)
+//        } else {
+//            settings.updateExcludedScanFolders(settings.extraScanFolders.value + path)
+//        }
+//    }
 
     fun onLyricsPicked(lyrics: String) {
         _trackInfoSheetState.value.track?.let { track ->

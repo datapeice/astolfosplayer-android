@@ -380,6 +380,9 @@
     <string name="no_data">Нет данных</string>
     <string name="rescan_folder">Rescan this folder\n</string>
     <string name="folder_not_selected">Folder not selected</string>
+    <string name="synchronization_started">Synchronization is started</string>
+    <string name="synchronization_finished">Synchronization finished</string>
+    <string name="synchronization_error">Synchronization error</string>
 
 
 </resources>
