@@ -1,6 +1,9 @@
 package com.datapeice.astolfosplayer.core.api
 
+import android.content.Context
 import android.util.Log
+import androidx.compose.ui.input.key.key
+import androidx.documentfile.provider.DocumentFile
 import com.datapeice.astolfosplayer.core.data.Settings
 import com.datapeice.astolfosplayer.core.utils.FileHasher
 import io.ktor.client.HttpClient
@@ -11,20 +14,18 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.readBytes
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import java.io.File
+import java.io.InputStream
 
 /**
  * Интерфейс для работы с API синхронизации.
  */
 interface SyncApi {
-    suspend fun getSyncStatus(): List<SyncStatusItem>
-    suspend fun batchUpload(files: List<File>)
     suspend fun performSync(
-        localFolder: File,
-        onProgress: (message: String) -> Unit
+        localFolder: DocumentFile,
+        // Лямбда теперь принимает текущий шаг, общее число шагов и сообщение
+        onProgress: (current: Int, total: Int, message: String) -> Unit
     )
 }
 
@@ -34,127 +35,109 @@ interface SyncApi {
 class KtorSyncApi(
     private val httpClient: HttpClient,
     private val settings: Settings,
-    private val trackApi: TrackApi // Добавили зависимость от TrackApi
+    private val trackApi: TrackApi,
+    private val context: Context // Зависимость от контекста
 ) : SyncApi {
 
-    private val serverAddress: String
-        get() = settings.serverAddress
+    private val serverAddress: String get() = settings.serverAddress
 
-    override suspend fun getSyncStatus(): List<SyncStatusItem> {
-        return httpClient.get("$serverAddress/api/sync/status") {
-            bearerAuth(settings.accessToken)
-        }.body()
-    }
-
-    override suspend fun batchUpload(files: List<File>) {
-        httpClient.post("$serverAddress/api/sync/batch-upload") {
-            bearerAuth(settings.accessToken)
-            setBody(
-                MultiPartFormDataContent(
-                    formData {
-                        files.forEach { file ->
-                            append("files", file.readBytes(), Headers.build {
-                                append(HttpHeaders.ContentType, "audio/mpeg") // Укажите правильный тип файла
-                                append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
-                            })
-                        }
-                    }
-                )
-            )
-        }
-    }
-
-    /**
-     * Реализация полной логики синхронизации, аналогично Python-скрипту.
-     */
-    /**
-     * Реализация полной логики синхронизации, аналогично Python-скрипту.
-     */
     override suspend fun performSync(
-        localFolder: File,
-        onProgress: (message: String) -> Unit
+        localFolder: DocumentFile,
+        onProgress: (current: Int, total: Int, message: String) -> Unit
     ) {
+        var currentStep = 0
+
         // --- 1. Получаем статус с сервера ---
-        onProgress("Получение статуса с сервера...")
+        onProgress(currentStep, 1, "Получение статуса с сервера...")
         val serverFiles = try {
-            getSyncStatus()
+            httpClient.get("$serverAddress/api/sync/status") {
+                bearerAuth(settings.accessToken)
+            }.body<List<SyncStatusItem>>()
         } catch (e: Exception) {
-            onProgress("Ошибка: Не удалось получить статус с сервера. ${e.message}")
+            onProgress(0, 1, "Ошибка: Не удалось получить статус. ${e.message}")
             return
         }
-        val serverHashes = serverFiles.associateBy({ it.fileHash }, { it.filename })
-        onProgress("На сервере ${serverHashes.size} файлов.")
+        val serverHashes = serverFiles.associate { it.fileHash to it.filename }
 
-        // --- 2. Загрузка новых файлов на сервер ---
-        onProgress("Поиск новых локальных файлов для загрузки...")
-        val localFiles = localFolder.listFiles { _, name -> name.endsWith(".mp3", true) } ?: emptyArray()
-
-        for (localFile in localFiles) {
-            val fileHash = FileHasher.calculateSha256(localFile)
-            if (fileHash == null) {
-                onProgress("Не удалось рассчитать хэш для ${localFile.name}")
-                continue
-            }
-
-            if (fileHash !in serverHashes) {
-                try {
-                    onProgress("Загрузка: ${localFile.name}...")
-                    trackApi.uploadTrack(localFile, localFile.nameWithoutExtension, null, null, null)
-                    onProgress("Загружено: ${localFile.name}")
-                } catch (e: Exception) {
-                    onProgress("Ошибка загрузки ${localFile.name}: ${e.message}")
+        // --- 2. Анализируем локальные файлы ---
+        onProgress(currentStep, 1, "Анализ локальных файлов...")
+        val localFiles = localFolder.listFiles().filter { it.name?.endsWith(".mp3", true) == true }
+        val localFileHashes = mutableMapOf<String, DocumentFile>()
+        for (file in localFiles) {
+            context.contentResolver.openInputStream(file.uri)?.use { inputStream ->
+                val hash = FileHasher.calculateSha256(inputStream)
+                if (hash != null) {
+                    localFileHashes[hash] = file
                 }
-            } else {
-                Log.d("SyncApi", "Файл ${localFile.name} уже есть на сервере.")
             }
         }
 
-        // --- 3. Скачивание файлов с сервера, которых нет локально ---
-        onProgress("Поиск новых серверных файлов для скачивания...")
-        val localHashes = localFiles.mapNotNull { file ->
-            FileHasher.calculateSha256(file)?.let { hash -> hash to file.name }
-        }.toMap()
+        // --- 3. Определяем, что нужно загрузить и скачать ---
+        val filesToUpload = localFileHashes.filter { it.key !in serverHashes.keys }.values.toList()
+        val filesToDownload = serverFiles.filter { it.fileHash !in localFileHashes.keys }
+        val totalSteps = filesToUpload.size + filesToDownload.size
+        onProgress(currentStep, totalSteps, "Подготовка к синхронизации...")
 
-        // --- ИЗМЕНЕНИЕ 1: Выносим получение всех треков из lazy ---
-        // Мы получим их только один раз, если они действительно понадобятся.
+        // --- 4. Загружаем новые файлы на сервер ---
+        if (filesToUpload.isNotEmpty()) {
+            onProgress(currentStep, totalSteps, "Загрузка ${filesToUpload.size} новых файлов...")
+            try {
+                // Используем batch-upload, как в Python-скрипте
+                httpClient.post("$serverAddress/api/sync/batch-upload") {
+                    bearerAuth(settings.accessToken)
+                    setBody(
+                        MultiPartFormDataContent(
+                            formData {
+                                filesToUpload.forEach { file ->
+                                    val fileBytes = context.contentResolver.openInputStream(file.uri)?.use { it.readBytes() }
+                                    if (fileBytes != null) {
+                                        append("files", fileBytes, Headers.build {
+                                            append(HttpHeaders.ContentType, "audio/mpeg")
+                                            append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
+                                        })
+                                    }
+                                }
+                            }
+                        )
+                    )
+                }
+                currentStep += filesToUpload.size
+                onProgress(currentStep, totalSteps, "Пакетная загрузка завершена.")
+
+            } catch (e: Exception) {
+                onProgress(currentStep, totalSteps, "Ошибка при массовой загрузке: ${e.message}")
+            }
+        }
+
+        // --- 5. Скачиваем недостающие файлы с сервера ---
         var allServerTracks: List<Track>? = null
-
-        for ((fileHash, filename) in serverHashes) {
-            if (fileHash !in localHashes) {
-                try {
-                    // --- ИЗМЕНЕНИЕ 2: Убираем поиск по 'id', так как его нет в SyncStatusItem ---
-                    // Просто ищем трек по хэшу или имени файла.
-                    // Сначала попробуем найти в полном списке, если он уже загружен
-                    var trackId = allServerTracks?.find { it.fileHash == fileHash || it.filename == filename }?.id
-
-                    // Если не нашли и список еще не был загружен, загружаем его
-                    if (trackId == null && allServerTracks == null) {
-                        onProgress("Загрузка полного списка треков с сервера...")
-                        allServerTracks = trackApi.getAllTracks()
-                        // Повторяем поиск
-                        trackId = allServerTracks?.find { it.fileHash == fileHash || it.filename == filename }?.id
-                    }
-
-                    // --- ИЗМЕНЕНИЕ 3: Проверяем trackId на null ---
-                    if (trackId == null) {
-                        onProgress("Не удалось найти ID для скачивания файла: $filename")
-                        continue
-                    }
-
-                    onProgress("Скачивание: $filename...")
-                    val fileBytes = trackApi.downloadTrackFile(trackId) // Теперь trackId это точно String
-                    val destinationFile = File(localFolder, filename)
-                    destinationFile.writeBytes(fileBytes)
-                    onProgress("Скачано: $filename")
-
-                } catch (e: Exception) {
-                    onProgress("Ошибка скачивания $filename: ${e.message}")
+        for ((fileHash, filename) in filesToDownload) {
+            currentStep++
+            onProgress(currentStep, totalSteps, "Поиск файла: $filename...")
+            try {
+                if (allServerTracks == null) {
+                    allServerTracks = trackApi.getAllTracks()
                 }
-            } else {
-                Log.d("SyncApi", "Файл $filename уже есть локально.")
+                val trackToDownload = allServerTracks.find { it.fileHash == fileHash }
+                if (trackToDownload == null) {
+                    onProgress(currentStep, totalSteps, "Не найден ID для: $filename")
+                    continue
+                }
+
+                onProgress(currentStep, totalSteps, "Скачивание: $filename...")
+                val downloadedFileBytes = trackApi.downloadTrackFile(trackToDownload.id)
+                val newFile = localFolder.createFile("audio/mpeg", filename)
+                if (newFile != null) {
+                    context.contentResolver.openOutputStream(newFile.uri)?.use {
+                        it.write(downloadedFileBytes)
+                    }
+                }
+            } catch (e: Exception) {
+                onProgress(currentStep, totalSteps, "Ошибка скачивания: $filename")
+                Log.e("SyncApi", "Ошибка скачивания $filename", e)
             }
         }
-        onProgress("Синхронизация завершена.")
-    }
 
+        onProgress(totalSteps, totalSteps, "Синхронизация завершена.")
+    }
 }

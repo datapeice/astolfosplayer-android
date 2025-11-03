@@ -6,6 +6,7 @@ import com.datapeice.astolfosplayer.core.api.KtorSyncApi
 import com.datapeice.astolfosplayer.core.api.KtorTrackApi
 import com.datapeice.astolfosplayer.core.api.SyncApi
 import com.datapeice.astolfosplayer.core.api.TrackApi
+import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val apiModule = module {
@@ -16,6 +17,12 @@ val apiModule = module {
     single<TrackApi> { KtorTrackApi(httpClient = get(), settings = get()) }
 
     // API для синхронизации
-    // API для синхронизации
-    single<SyncApi> { KtorSyncApi(httpClient = get(), settings = get(), trackApi = get()) }
+    single<SyncApi> {
+        KtorSyncApi(
+            httpClient = get(),
+            settings = get(),
+            trackApi = get(),
+            context = androidContext() // <-- ИСПРАВЛЕНО ЗДЕСЬ
+        )
+    }
 }

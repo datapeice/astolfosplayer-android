@@ -3,12 +3,17 @@ package com.datapeice.astolfosplayer.core.api
 import com.datapeice.astolfosplayer.core.data.Settings
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.*
+import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import java.io.File
+import kotlin.text.append
 
 /**
  * Интерфейс для работы с треками на сервере.
@@ -18,7 +23,8 @@ interface TrackApi {
     suspend fun getTrack(trackId: String): Track
     suspend fun downloadTrackFile(trackId: String): ByteArray
     suspend fun uploadTrack(
-        file: File,
+        fileBytes: ByteArray, // <-- ИЗМЕНЕНО
+        fileName: String, // <-- ИЗМЕНЕНО
         title: String?,
         artist: String?,
         album: String?,
@@ -33,7 +39,7 @@ interface TrackApi {
  */
 class KtorTrackApi(
     private val httpClient: HttpClient,
-    private val settings: Settings // Нужен для получения адреса и токена
+    private val settings: Settings
 ) : TrackApi {
 
     private val serverAddress: String
@@ -58,7 +64,8 @@ class KtorTrackApi(
     }
 
     override suspend fun uploadTrack(
-        file: File,
+        fileBytes: ByteArray,
+        fileName: String,
         title: String?,
         artist: String?,
         album: String?,
@@ -71,10 +78,10 @@ class KtorTrackApi(
                     formData {
                         append(
                             "file",
-                            file.readBytes(),
+                            fileBytes,
                             Headers.build {
-                                append(HttpHeaders.ContentType, "audio/mpeg") // Укажите правильный тип файла
-                                append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
+                                append(HttpHeaders.ContentType, "audio/mpeg") // Можно сделать более умное определение типа
+                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
                             }
                         )
                         // Добавляем опциональные поля, только если они не null
@@ -88,6 +95,8 @@ class KtorTrackApi(
         }
         return response.body()
     }
+    // --- ЗАКОНЧИТЕ ЗАМЕНУ ЗДЕСЬ ---
+
 
     override suspend fun deleteTrack(trackId: String) {
         httpClient.delete("$serverAddress/api/tracks/$trackId") {

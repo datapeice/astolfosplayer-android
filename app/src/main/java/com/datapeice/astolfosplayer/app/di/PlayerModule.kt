@@ -125,7 +125,8 @@ val playerModule = module {
             settings = get(),
             musicScanner = get(),
             equalizerController = get(),
-            setupViewModel = get()
+            setupViewModel = get(),
+            context = get()
         )
     }
 }

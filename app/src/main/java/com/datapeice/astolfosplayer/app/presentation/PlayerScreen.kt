@@ -66,7 +66,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -116,6 +115,8 @@ import com.materialkolor.ktx.toHct
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import androidx.compose.material.icons.rounded.ImportExport
+import androidx.compose.ui.Alignment
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
@@ -1049,14 +1050,7 @@ fun MainPlayerScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-                                IconButton(
-                                    onClick = onSyncClick // <-- Используем новый обработчик
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.ImportExport,
-                                        contentDescription = "Синхронизация" // TODO: stringResource
-                                    )
-                                }
+
                                 // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
                                 IconButton(
@@ -1065,6 +1059,14 @@ fun MainPlayerScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.Settings,
                                         contentDescription = context.resources.getString(R.string.settings)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = onSyncClick // <-- Используем новый обработчик
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ImportExport,
+                                        contentDescription = "Синхронизация" // TODO: stringResource
                                     )
                                 }
 
@@ -1085,8 +1087,39 @@ fun MainPlayerScreen(
                                 }
                             }
                             Row {
-                                // ...(остальная часть кода без изменений)
+                                if (tab != Tab.Tracks) {
+                                    IconButton(
+                                        onClick = onGridPlaylistsClick
+                                    ) {
+                                        Icon(
+                                            imageVector = if (gridPlaylists) {
+                                                Icons.Rounded.GridView
+                                            } else Icons.AutoMirrored.Rounded.ViewList,
+                                            contentDescription = context.resources.getString(
+                                                if (gridPlaylists) {
+                                                    R.string.enable_list_view
+                                                } else R.string.enable_grid_view
+                                            )
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        showSearchField = true
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = if (replaceSearchWithFilter && tab == Tab.Tracks) {
+                                            Icons.Rounded.FilterList
+                                        } else Icons.Rounded.Search,
+                                        contentDescription = context.resources.getString(
+                                            R.string.track_search
+                                        )
+                                    )
+                                }
                             }
+
                         }
                     }
 

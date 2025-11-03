@@ -1,11 +1,13 @@
 package com.datapeice.astolfosplayer.app.presentation
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastMap
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -49,6 +51,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -58,6 +61,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class SyncState(
+    val isSyncing: Boolean = false,
+    val message: String = "",
+    val progress: Float = 0f
+)
 class PlayerViewModel(
     private val savedPlayerState: SavedPlayerState,
     private val trackRepository: TrackRepository,
@@ -71,10 +79,12 @@ class PlayerViewModel(
     val settings: Settings,
     private val musicScanner: MusicScanner,
     private val equalizerController: EqualizerController,
-    private val setupViewModel: SetupViewModel
+    private val setupViewModel: SetupViewModel,
+    private val context: Context
 ) : ViewModel() {
     var player: Player? = null
-
+    private val _syncState = MutableStateFlow(SyncState())
+    val syncState = _syncState.asStateFlow()
     private val _settingsSheetState = MutableStateFlow(
         SettingsSheetState(
             settings = settings,
@@ -1289,35 +1299,60 @@ class PlayerViewModel(
             }
         }
     }
-    // НЕПРАВИЛЬНО
-    // --- НАЧНИТЕ ЗАМЕНУ ОТСЮДА ---
+
+
     private fun onSyncClick() {
-        viewModelScope.launch { // 1. Стартуем в главном потоке
+        if (_syncState.value.isSyncing) return // Не запускаем вторую синхронизацию, если одна уже идет
+        viewModelScope.launch { // Стартуем в главном потоке
             try {
-                // 2. Используем правильный android.os.Environment
-                val musicFolder = android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_MUSIC
-                )
+                val folderUriString = settings.extraScanFolders.value.firstOrNull()
+                if (folderUriString.isNullOrBlank()) {
+                    _syncState.value = SyncState(
+                        isSyncing = false,
+                        message = "Папка для синхронизации не выбрана. Пожалуйста, выберите ее в настройках."
+                    )
+                    delay(3000)
+                    _syncState.value = SyncState()
+                    return@launch
+                }
+
+                // 2. Преобразуем URI строки в DocumentFile
+                val folderUri = Uri.parse(folderUriString)
+                val musicFolder = DocumentFile.fromTreeUri(context, folderUri)
+                if (musicFolder == null || !musicFolder.exists()) {
+                    _syncState.value = SyncState(
+                        isSyncing = false,
+                        message = "Ошибка доступа к выбранной папке."
+                    )
+                    delay(3000)
+                    _syncState.value = SyncState()
+                    return@launch
+                }
 
                 // 3. Выполняем тяжелую работу в фоновом потоке
                 withContext(Dispatchers.IO) {
-                    syncApi.performSync(musicFolder) { message ->
-                        // 4. Для обновления UI возвращаемся в главный поток
+                    syncApi.performSync(musicFolder) { current, total, message ->
+                        // 4. Обновляем UI в главном потоке
                         launch(Dispatchers.Main) {
-                            SnackbarController.sendEvent(SnackbarEvent(message = R.string.synchronization_started))
-                            Log.d("SyncProgress", message)
+                            _syncState.value = SyncState(
+                                isSyncing = true,
+                                message = message,
+                                progress = if (total > 0) current.toFloat() / total else 0f
+                            )
+                            Log.d("SyncProgress", "$current/$total: $message")
                         }
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                SnackbarController.sendEvent(
-                    SnackbarEvent(
-                        message = R.string.synchronization_error, // <-- Используем ID ресурса
-                    )
-                )
-            }
 
+                // 5. Синхронизация успешно завершена
+                _syncState.value = _syncState.value.copy(
+                    message = "Синхронизация завершена!",
+                    progress = 1f
+                )
+                delay(2000) // Показываем сообщение 2 секунды
+            } finally {
+                _syncState.value = SyncState(isSyncing = false)
+            }
         }
     }
 
@@ -1335,14 +1370,14 @@ class PlayerViewModel(
             )
         }
     }
-//
-//    fun onFolderPicked(path: String) {
-//        if (settings.isScanModeInclusive.value) {
-//            settings.updateExtraScanFolders(settings.extraScanFolders.value + path)
-//        } else {
-//            settings.updateExcludedScanFolders(settings.extraScanFolders.value + path)
-//        }
-//    }
+
+    fun onFolderPicked(path: String) {
+        if (settings.isScanModeInclusive.value) {
+            settings.updateExtraScanFolders(settings.extraScanFolders.value + path)
+        } else {
+            settings.updateExcludedScanFolders(settings.extraScanFolders.value + path)
+        }
+    }
 
     fun onLyricsPicked(lyrics: String) {
         _trackInfoSheetState.value.track?.let { track ->
