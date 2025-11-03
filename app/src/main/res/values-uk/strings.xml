@@ -329,4 +329,36 @@
 
     <string name="copy_error">Скопіювати помилку</string>
     <string name="select_all">Обрати всі</string>
+
+    <string name="server_setting">Налаштування сервера</string>
+    <string name="server_address_hint">Адреса сервера</string>
+    <string name="login">Логін</string>
+    <string name="password">Пароль</string>
+    <string name="register">Реєстрація</string>
+
+    <!-- Рядки для діалогу завантаження та помилок -->
+    <string name="loading_login">Вхід у систему…</string>
+    <string name="loading_register">Реєстрація…</string>
+    <string name="login_success">Вхід виконано успішно!</string>
+    <string name="register_success">Реєстрація успішна! Тепер увійдіть.</string>
+
+    <!-- Рядки для помилок -->
+    <string name="error_invalid_address_format">Неправильний формат адреси. Приклад: http://1.2.3.4:8000</string>
+    <string name="error_invalid_credentials">Невірний логін або пароль</string>
+    <string name="error_user_exists">Користувач із таким ім’ям уже існує</string>
+    <string name="error_register_failed">Сталася помилка під час реєстрації</string>
+    <string name="error_server_timeout">Сервер не відповідає. Перевірте адресу та підключення до мережі.</string>
+    <string name="error_connection_failed">Не вдалося підключитися. Переконайтеся, що сервер запущено.</string>
+    <string name="error_read_timeout">Перевищено час очікування відповіді.</string>
+    <string name="error_network_default">Помилка мережі: %s</string> <!-- %s буде замінено на повідомлення про помилку -->
+    <string name="server_setting_supported_text">Server setings, user info</string> <!-- %s will be replaced with the error message -->
+    <!-- Добавьте этот блок в strings.xml -->
+    <string name="current_server_settings">Текущие настройки</string>
+    <string name="access_token">Токен доступа</string>
+    <string name="server_address">Адрес сервера</string>
+    <string name="save">Сохранить</string>
+    <string name="password_hidden">********</string>
+    <string name="token_not_received">Токен еще не получен</string>
+    <string name="no_data">Нет данных</string>
+
 </resources>

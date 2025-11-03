@@ -11,7 +11,7 @@ val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';').orEmpty()
 val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86" to 3, "x86_64" to 4)
 val ktorVersion = "2.3.6"
 android {
-    namespace = "com.datapeice.astolfoplayer"
+    namespace = "com.datapeice.astolfosplayer"
     compileSdk = 35
 
     defaultConfig {
@@ -120,6 +120,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

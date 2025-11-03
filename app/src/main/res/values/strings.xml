@@ -341,8 +341,45 @@
 
     <string name="copy_error">Copy error</string>
     <string name="select_all">Select all</string>
-    <string name="server_address_hint">Server\'s adress</string>
+
+
+
+    <!-- Вставьте этот блок внутрь тега <resources> в файле strings.xml -->
+
+    <!-- Строки для страницы настройки сервера -->
     <string name="server_setting">Server Setting</string>
-    <string name="login_string">Login</string>
-    <string name="register_string">Register</string>
+    <string name="server_address_hint">Server address</string>
+    <string name="login">Login</string>
+    <string name="password">Password</string>
+    <string name="register">Register</string>
+
+    <!-- Строки для диалога загрузки и ошибок -->
+    <string name="loading_login">Log in...</string>
+    <string name="loading_register">Registration...</string>
+    <string name="login_success">Login successful!</string>
+    <string name="register_success">Registration successful! Now you can log in.</string>
+
+    <!-- Строки для ошибок -->
+    <!-- Error strings -->
+    <string name="error_invalid_address_format">Invalid address format. Example: http://1.2.3.4:8000</string>
+    <string name="error_invalid_credentials">Invalid username or password</string>
+    <string name="error_user_exists">A user with this name already exists</string>
+    <string name="error_register_failed">Registration failed</string>
+    <string name="error_server_timeout">The server is not responding. Check the address and network connection.</string>
+    <string name="error_connection_failed">Failed to connect. Make sure the server is running.</string>
+    <string name="error_read_timeout">Response timeout exceeded.</string>
+    <string name="error_network_default">Network error: %s</string>
+    <string name="server_setting_supported_text">Server setings, user info</string> <!-- %s will be replaced with the error message -->
+    <!-- Добавьте этот блок в strings.xml -->
+    <string name="current_server_settings">Текущие настройки</string>
+    <string name="access_token">Токен доступа</string>
+    <string name="server_address">Адрес сервера</string>
+    <string name="save">Сохранить</string>
+    <string name="password_hidden">********</string>
+    <string name="token_not_received">Токен еще не получен</string>
+    <string name="no_data">Нет данных</string>
+    <string name="rescan_folder">Rescan this folder\n</string>
+    <string name="folder_not_selected">Folder not selected</string>
+
+
 </resources>

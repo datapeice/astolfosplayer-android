@@ -329,4 +329,38 @@
 
     <string name="copy_error">Скопировать ошибку</string>
     <string name="select_all">Выбрать все</string>
+
+
+
+    <!-- Строки для страницы настройки сервера -->
+    <string name="server_setting">Настройка сервера</string>
+    <string name="server_address_hint">Адрес сервера (например, http://1.2.3.4:8000)</string>
+    <string name="login">Логин</string>
+    <string name="password">Пароль</string>
+    <string name="register">Регистрация</string>
+
+    <!-- Строки для диалога загрузки и ошибок -->
+    <string name="loading_login">Вход в систему…</string>
+    <string name="loading_register">Регистрация…</string>
+    <string name="login_success">Вход выполнен успешно!</string>
+    <string name="register_success">Регистрация успешна! Теперь войдите.</string>
+
+    <!-- Строки для ошибок -->
+    <string name="error_invalid_address_format">Неверный формат адреса. Пример: http://1.2.3.4:8000</string>
+    <string name="error_invalid_credentials">Неверный логин или пароль</string>
+    <string name="error_user_exists">Пользователь с таким именем уже существует</string>
+    <string name="error_register_failed">Произошла ошибка регистрации</string>
+    <string name="error_server_timeout">Сервер не отвечает. Проверьте адрес и подключение к сети.</string>
+    <string name="error_connection_failed">Не удалось подключиться. Проверьте, запущен ли сервер.</string>
+    <string name="error_read_timeout">Превышено время ожидания ответа.</string>
+    <string name="error_network_default">Ошибка сети: %s</string> <!-- %s будет заменен на сообщение об ошибке -->
+    <string name="server_setting_supported_text">Server setings, user info</string> <!-- %s will be replaced with the error message -->
+    <!-- Добавьте этот блок в strings.xml -->
+    <string name="current_server_settings">Текущие настройки</string>
+    <string name="access_token">Токен доступа</string>
+    <string name="server_address">Адрес сервера</string>
+    <string name="save">Сохранить</string>
+    <string name="password_hidden">********</string>
+    <string name="token_not_received">Токен еще не получен</string>
+    <string name="no_data">Нет данных</string>
 </resources>

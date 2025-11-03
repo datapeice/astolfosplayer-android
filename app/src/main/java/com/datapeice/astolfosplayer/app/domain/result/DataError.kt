@@ -1,0 +1,26 @@
+package com.datapeice.astolfosplayer.app.domain.result
+
+sealed interface DataError: Error {
+    enum class Network: DataError {
+        BadRequest,
+        Unauthorized,
+        Forbidden,
+        NotFound,
+        RequestTimeout,
+
+        InternalServerError,
+        ServiceUnavailable,
+
+        ParseError,
+        NoInternet,
+        Unknown
+    }
+
+    enum class Local: DataError {
+        NoReadPermission,
+        NoWritePermission,
+        FailedToRead,
+        FailedToWrite,
+        Unknown
+    }
+}
