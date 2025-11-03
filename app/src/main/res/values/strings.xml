@@ -383,6 +383,7 @@
     <string name="synchronization_started">Synchronization is started</string>
     <string name="synchronization_finished">Synchronization finished</string>
     <string name="synchronization_error">Synchronization error</string>
+    <string name="access_folder_error">Unable to access this folder</string>
 
 
 </resources>

@@ -1322,7 +1322,7 @@ class PlayerViewModel(
                 if (musicFolder == null || !musicFolder.exists()) {
                     _syncState.value = SyncState(
                         isSyncing = false,
-                        message = "Ошибка доступа к выбранной папке."
+                        message = context.getString(R.string.access_folder_error)
                     )
                     delay(3000)
                     _syncState.value = SyncState()
@@ -1346,7 +1346,7 @@ class PlayerViewModel(
 
                 // 5. Синхронизация успешно завершена
                 _syncState.value = _syncState.value.copy(
-                    message = "Синхронизация завершена!",
+                    message = context.getString(R.string.synchronization_finished),
                     progress = 1f
                 )
                 delay(2000) // Показываем сообщение 2 секунды

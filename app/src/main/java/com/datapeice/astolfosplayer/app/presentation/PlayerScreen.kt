@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -115,7 +116,9 @@ import com.materialkolor.ktx.toHct
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import androidx.compose.material.icons.rounded.ImportExport
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.Alignment
+import com.datapeice.astolfosplayer.app.presentation.components.SyncProgressBar
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -726,6 +729,7 @@ fun PlayerScreen(
                     val isPlayerExpanded by remember {
                         derivedStateOf { playbackState.isPlayerExpanded }
                     }
+                    val syncState by viewModel.syncState.collectAsState()
                     if (!isPlayerExpanded) {
                         ScrollToTopAndLocateButtons(
                             showScrollToTopButton = showScrollToTopButton,
@@ -735,6 +739,46 @@ fun PlayerScreen(
                             modifier = Modifier.align(Alignment.End)
                         )
                     }
+                    // --- НАЧАЛО ИСПРАВЛЕННОГО БЛОКА ---
+                    AnimatedVisibility(
+                        visible = syncState.isSyncing,
+                        enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+                    ) {
+                        // Обертка Box для управления шириной и выравниванием
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp), // Отступ только снизу
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp), // Внутренние отступы
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                // Текст с сообщением синхронизации
+                                Text(
+                                    text = syncState.message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+
+                                // Прогресс-бар без закруглений
+                                LinearProgressIndicator(
+                                    progress = syncState.progress,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp), // Тонкая линия
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+// --- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ---
+
 
                     AnimatedVisibility(
                         visible = currentTrack != null,
