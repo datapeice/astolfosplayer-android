@@ -33,7 +33,10 @@
 Latest stable version is available on [GitHub releases](https://github.com/datapeice/astolfosplayer-android/releases/latest)
 
 ## Support
-If you enjoy using Astolfos Player, consider supporting the project!
+If you enjoy using Astolfos Player, consider:
+- ⭐ Starring the repository on GitHub
+- 🐛 Reporting bugs and suggesting features via [Issues](https://github.com/datapeice/astolfosplayer-android/issues)
+- 🤝 Contributing to the project
 
 ## Build
 1. **Get the Source Code**  
