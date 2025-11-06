@@ -1,9 +1,9 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/icon-fit.png" width="200px" />
 
-  # Lotus
+  # Astolfos Player
 
-  ### Music player for Android
+  ### Music player for Android designed with Material You
   
 </div>
 
@@ -30,18 +30,19 @@
 - Designed with [Material You](https://m3.material.io/) and supports dynamic color palettes
 
 ## Download
-Latest stable version is available on [GitHub releases](https://github.com/dn0ne/lotus/releases/latest)
-
-Stable releases are also available on [F-Droid](https://f-droid.org/packages/com.dn0ne.lotus)
+Latest stable version is available on [GitHub releases](https://github.com/datapeice/astolfosplayer-android/releases/latest)
 
 ## Support
-If you enjoy using Lotus, consider [buying me a coffee](https://en.liberapay.com/dn0ne/donate)!
+If you enjoy using Astolfos Player, consider:
+- ⭐ Starring the repository on GitHub
+- 🐛 Reporting bugs and suggesting features via [Issues](https://github.com/datapeice/astolfosplayer-android/issues)
+- 🤝 Contributing to the project
 
 ## Build
 1. **Get the Source Code**  
    - Clone the repository or download the source code:
      ```bash
-     git clone https://github.com/dn0ne/lotus.git
+     git clone https://github.com/datapeice/astolfosplayer-android.git
      ```
 
 2. **Open project in Android Studio**  
@@ -70,4 +71,4 @@ Lyrics UI is inspired by [Beautiful Lyrics](https://github.com/surfbryce/beautif
 [jaudiotagger](https://bitbucket.org/ijabz/jaudiotagger/src/master/)
 
 ## License
-Lotus is licensed under [GPLv3](LICENSE.md)
+Astolfos Player is licensed under [GPLv3](LICENSE.md)
