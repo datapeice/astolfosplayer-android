@@ -17,6 +17,8 @@ import io.ktor.client.request.setBody
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import java.io.InputStream
+import kotlin.text.contains
+import kotlin.text.get
 
 /**
  * Интерфейс для работы с API синхронизации.
@@ -61,7 +63,10 @@ class KtorSyncApi(
 
         // --- 2. Анализируем локальные файлы ---
         onProgress(currentStep, 1, "Анализ локальных файлов...")
-        val localFiles = localFolder.listFiles().filter { it.name?.endsWith(".mp3", true) == true }
+        val localFiles = localFolder.listFiles().filter {
+            it.name?.endsWith(".mp3", true) == true ||
+                    it.name?.endsWith(".flac", true) == true
+        }
         val localFileHashes = mutableMapOf<String, DocumentFile>()
         for (file in localFiles) {
             context.contentResolver.openInputStream(file.uri)?.use { inputStream ->
@@ -78,34 +83,34 @@ class KtorSyncApi(
         val totalSteps = filesToUpload.size + filesToDownload.size
         onProgress(currentStep, totalSteps, "Подготовка к синхронизации...")
 
-        // --- 4. Загружаем новые файлы на сервер ---
-        if (filesToUpload.isNotEmpty()) {
-            onProgress(currentStep, totalSteps, "Загрузка ${filesToUpload.size} новых файлов...")
-            try {
-                // Используем batch-upload, как в Python-скрипте
-                httpClient.post("$serverAddress/api/sync/batch-upload") {
-                    bearerAuth(settings.accessToken)
-                    setBody(
-                        MultiPartFormDataContent(
-                            formData {
-                                filesToUpload.forEach { file ->
-                                    val fileBytes = context.contentResolver.openInputStream(file.uri)?.use { it.readBytes() }
-                                    if (fileBytes != null) {
-                                        append("files", fileBytes, Headers.build {
-                                            append(HttpHeaders.ContentType, "audio/mpeg")
-                                            append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
-                                        })
-                                    }
-                                }
-                            }
-                        )
-                    )
-                }
-                currentStep += filesToUpload.size
-                onProgress(currentStep, totalSteps, "Пакетная загрузка завершена.")
+        // --- 4. Загружаем файлы поочередно ---
+        for ((index, file) in filesToUpload.withIndex()) {
+            currentStep++
+            val fileName = file.name ?: "unknown"
+            onProgress(currentStep, totalSteps, "Загрузка ${index + 1}/${filesToUpload.size}: $fileName")
 
+            try {
+                context.contentResolver.openInputStream(file.uri)?.use { inputStream ->
+                    httpClient.post("$serverAddress/api/tracks/upload") {
+                        bearerAuth(settings.accessToken)
+                        setBody(
+                            MultiPartFormDataContent(
+                                formData {
+                                    append("file", inputStream.readBytes(), Headers.build {
+                                        append(HttpHeaders.ContentType,
+                                            if (fileName.endsWith(".flac", true)) "audio/flac" else "audio/mpeg")
+                                        append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                                    })
+                                    append("title", fileName.substringBeforeLast("."))
+                                }
+                            )
+                        )
+                    }
+                }
+                onProgress(currentStep, totalSteps, "Загружено: $fileName")
             } catch (e: Exception) {
-                onProgress(currentStep, totalSteps, "Ошибка при массовой загрузке: ${e.message}")
+                onProgress(currentStep, totalSteps, "Ошибка загрузки: $fileName - ${e.message}")
+                Log.e("SyncApi", "Ошибка загрузки $fileName", e)
             }
         }
 
@@ -126,7 +131,8 @@ class KtorSyncApi(
 
                 onProgress(currentStep, totalSteps, "Скачивание: $filename...")
                 val downloadedFileBytes = trackApi.downloadTrackFile(trackToDownload.id)
-                val newFile = localFolder.createFile("audio/mpeg", filename)
+                val mimeType = if (filename.endsWith(".flac", true)) "audio/flac" else "audio/mpeg"
+                val newFile = localFolder.createFile(mimeType, filename)
                 if (newFile != null) {
                     context.contentResolver.openOutputStream(newFile.uri)?.use {
                         it.write(downloadedFileBytes)
@@ -140,4 +146,5 @@ class KtorSyncApi(
 
         onProgress(totalSteps, totalSteps, "Синхронизация завершена.")
     }
+
 }

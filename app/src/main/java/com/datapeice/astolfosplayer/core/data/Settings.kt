@@ -47,11 +47,8 @@ class Settings(context: Context) {
     private val playlistSortKey = "playlist-sort-key"
     private val playlistSortOrderKey = "playlist-sort-order-key"
 
-    private val isScanModeInclusiveKey = "is-scan-mode-inclusive"
     private val ignoreShortTracksKey = "exclude-short-tracks"
-    private val scanMusicFolderKey = "scan-music-in-music"
     private val extraScanFoldersKey = "extra-scan-folders"
-    private val excludedScanFoldersKey = "excluded-scan-folders"
     private val scanOnAppLaunchKey = "scan-on-app-launch"
 
     private val tabOrderKey = "tab-order"
@@ -60,6 +57,7 @@ class Settings(context: Context) {
     private val jumpToBeginningKey = "jump-to-beginning"
 
     private val gridPlaylistsKey = "grid-playlists"
+
     var serverAddress: String
         get() = sharedPreferences.getString(serverAddressKey, "") ?: ""
         set(value) {
@@ -312,18 +310,6 @@ class Settings(context: Context) {
             }
         }
 
-    private val _isScanModeInclusive = MutableStateFlow(
-        sharedPreferences.getBoolean(isScanModeInclusiveKey, true)
-    )
-    val isScanModeInclusive = _isScanModeInclusive.asStateFlow()
-    fun updateIsScanModeInclusive(value: Boolean) {
-        _isScanModeInclusive.update { value }
-        with(sharedPreferences.edit()) {
-            putBoolean(isScanModeInclusiveKey, value)
-            apply()
-        }
-    }
-
     var ignoreShortTracks: Boolean
         get() = sharedPreferences.getBoolean(ignoreShortTracksKey, true)
         set(value) {
@@ -333,38 +319,15 @@ class Settings(context: Context) {
             }
         }
 
-    private val _scanMusicFolder = MutableStateFlow(
-        sharedPreferences.getBoolean(scanMusicFolderKey, true)
-    )
-    val scanMusicFolder = _scanMusicFolder.asStateFlow()
-    fun updateScanMusicFolder(value: Boolean) {
-        _scanMusicFolder.update { value }
-        with(sharedPreferences.edit()) {
-            putBoolean(scanMusicFolderKey, value)
-            apply()
-        }
-    }
-
+    // Храним ОДНУ папку для сканирования
     private val _extraScanFolders = MutableStateFlow(
-        sharedPreferences.getStringSet(extraScanFoldersKey, setOf<String>()) ?: setOf<String>()
+        sharedPreferences.getStringSet(extraScanFoldersKey, setOf()) ?: setOf()
     )
     val extraScanFolders = _extraScanFolders.asStateFlow()
     fun updateExtraScanFolders(value: Set<String>) {
         _extraScanFolders.update { value }
         with(sharedPreferences.edit()) {
             putStringSet(extraScanFoldersKey, value)
-            apply()
-        }
-    }
-
-    private val _excludedScanFolders = MutableStateFlow(
-        sharedPreferences.getStringSet(excludedScanFoldersKey, setOf<String>()) ?: setOf<String>()
-    )
-    val excludedScanFolders = _excludedScanFolders.asStateFlow()
-    fun updateExcludedScanFolders(value: Set<String>) {
-        _excludedScanFolders.update { value }
-        with(sharedPreferences.edit()) {
-            putStringSet(excludedScanFoldersKey, value)
             apply()
         }
     }
@@ -425,5 +388,29 @@ class Settings(context: Context) {
             putBoolean(gridPlaylistsKey, value)
             apply()
         }
+    }
+
+    // === ЗАГЛУШКИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ===
+    // Эти поля нужны для старого кода, который ещё не переписан
+
+    @Deprecated("Больше не используется в новой логике сканирования")
+    val scanMusicFolder = MutableStateFlow(true).asStateFlow()
+
+    @Deprecated("Больше не используется в новой логике сканирования")
+    private val _excludedScanFolders = MutableStateFlow(emptySet<String>())
+    val excludedScanFolders = _excludedScanFolders.asStateFlow()
+
+    @Deprecated("Больше не используется в новой логике сканирования")
+    fun updateExcludedScanFolders(value: Set<String>) {
+        // Пустая реализация для совместимости
+    }
+
+    @Deprecated("Больше не используется в новой логике сканирования")
+    private val _isScanModeInclusive = MutableStateFlow(true)
+    val isScanModeInclusive = _isScanModeInclusive.asStateFlow()
+
+    @Deprecated("Больше не используется в новой логике сканирования")
+    fun updateIsScanModeInclusive(value: Boolean) {
+        // Пустая реализация для совместимости
     }
 }

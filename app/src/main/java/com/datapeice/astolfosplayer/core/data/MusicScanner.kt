@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Context.CLIPBOARD_SERVICE
 import android.media.MediaScannerConnection
-import android.os.Environment
 import com.datapeice.astolfosplayer.R
 import com.datapeice.astolfosplayer.app.presentation.components.snackbar.SnackbarAction
 import com.datapeice.astolfosplayer.app.presentation.components.snackbar.SnackbarController
@@ -23,32 +22,41 @@ class MusicScanner(
     suspend fun refreshMedia(showMessages: Boolean = true, onComplete: () -> Unit = {}) {
         withContext(Dispatchers.IO) {
             try {
-                val isScanModeInclusive = settings.isScanModeInclusive.value
+                // Получаем папку из настроек
+                val selectedFolder = settings.extraScanFolders.value.firstOrNull()
 
-                val directoriesToScan = if (isScanModeInclusive) {
-                    settings.extraScanFolders.value.map { File(it) }.toMutableList().apply {
-                        if (settings.scanMusicFolder.value) {
-                            add(
-                                Environment
-                                    .getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                if (selectedFolder.isNullOrBlank()) {
+                    if (showMessages) {
+                        SnackbarController.sendEvent(
+                            event = SnackbarEvent(
+                                message = R.string.folder_not_selected // Добавьте эту строку в ресурсы
                             )
-                        }
+                        )
                     }
-                } else {
-                    listOf(
-                        Environment.getExternalStorageDirectory()
-                    )
+                    onComplete()
+                    return@withContext
                 }
 
-                val excludedFromScan = settings.excludedScanFolders.value
+                val directory = File(selectedFolder)
 
+                if (!directory.exists() || !directory.isDirectory) {
+                    if (showMessages) {
+                        SnackbarController.sendEvent(
+                            event = SnackbarEvent(
+                                message = R.string.folder_not_found // Добавьте эту строку в ресурсы
+                            )
+                        )
+                    }
+                    onComplete()
+                    return@withContext
+                }
 
-                val paths = directoriesToScan.flatMap { directory ->
-                    directory.walkTopDown()
-                        .onEnter { if (isScanModeInclusive) true else it.absolutePath !in excludedFromScan }
-                        .filter { it.isFile && it.extension.lowercase() in allowedExtensions }
-                        .map { it.absolutePath }
-                }.toTypedArray()
+                // Сканируем ТОЛЬКО выбранную папку
+                val paths = directory.walkTopDown()
+                    .filter { it.isFile && it.extension.lowercase() in allowedExtensions }
+                    .map { it.absolutePath }
+                    .toList()
+                    .toTypedArray()
 
                 if (paths.isEmpty()) {
                     if (showMessages) {
@@ -75,26 +83,6 @@ class MusicScanner(
                     }
                 }
             } catch (e: Exception) {
-                if (!showMessages) return@withContext
-                SnackbarController.sendEvent(
-                    SnackbarEvent(
-                        message = R.string.failed_to_refresh,
-                        action = SnackbarAction(
-                            name = R.string.copy_error,
-                            action = {
-                                val clipboardManager =
-                                    context.getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager
-                                val clip =
-                                    ClipData.newPlainText(
-                                        null,
-                                        e.message + "\n" + e.stackTrace.joinToString("\n")
-                                    )
-                                clipboardManager?.setPrimaryClip(clip)
-                            }
-                        )
-                    )
-                )
-            } catch (e: java.lang.Exception) {
                 if (!showMessages) return@withContext
                 SnackbarController.sendEvent(
                     SnackbarEvent(
@@ -148,22 +136,6 @@ class MusicScanner(
                                         null,
                                         e.message + "\n" + e.stackTrace.joinToString("\n")
                                     )
-                                clipboardManager?.setPrimaryClip(clip)
-                            }
-                        )
-                    )
-                )
-            } catch (e: java.lang.Exception) {
-                SnackbarController.sendEvent(
-                    SnackbarEvent(
-                        message = R.string.failed_to_scan,
-                        action = SnackbarAction(
-                            name = R.string.copy_error,
-                            action = {
-                                val clipboardManager =
-                                    context.getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager
-                                val clip =
-                                    ClipData.newPlainText(null, e.stackTrace.joinToString("\n"))
                                 clipboardManager?.setPrimaryClip(clip)
                             }
                         )
