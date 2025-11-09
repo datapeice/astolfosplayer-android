@@ -5,13 +5,14 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Context.CLIPBOARD_SERVICE
 import android.media.MediaScannerConnection
+import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import com.datapeice.astolfosplayer.R
 import com.datapeice.astolfosplayer.app.presentation.components.snackbar.SnackbarAction
 import com.datapeice.astolfosplayer.app.presentation.components.snackbar.SnackbarController
 import com.datapeice.astolfosplayer.app.presentation.components.snackbar.SnackbarEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 class MusicScanner(
     private val context: Context,
@@ -22,14 +23,14 @@ class MusicScanner(
     suspend fun refreshMedia(showMessages: Boolean = true, onComplete: () -> Unit = {}) {
         withContext(Dispatchers.IO) {
             try {
-                // Получаем папку из настроек
-                val selectedFolder = settings.extraScanFolders.value.firstOrNull()
+                // Получаем папку из настроек (это URI-строка)
+                val selectedFolderUri = settings.extraScanFolders.value.firstOrNull()
 
-                if (selectedFolder.isNullOrBlank()) {
+                if (selectedFolderUri.isNullOrBlank()) {
                     if (showMessages) {
                         SnackbarController.sendEvent(
                             event = SnackbarEvent(
-                                message = R.string.folder_not_selected // Добавьте эту строку в ресурсы
+                                message = R.string.folder_not_selected
                             )
                         )
                     }
@@ -37,13 +38,14 @@ class MusicScanner(
                     return@withContext
                 }
 
-                val directory = File(selectedFolder)
+                // Используем DocumentFile для работы с URI
+                val directory = DocumentFile.fromTreeUri(context, Uri.parse(selectedFolderUri))
 
-                if (!directory.exists() || !directory.isDirectory) {
+                if (directory == null || !directory.exists() || !directory.isDirectory) {
                     if (showMessages) {
                         SnackbarController.sendEvent(
                             event = SnackbarEvent(
-                                message = R.string.folder_not_found // Добавьте эту строку в ресурсы
+                                message = R.string.folder_not_found
                             )
                         )
                     }
@@ -51,12 +53,9 @@ class MusicScanner(
                     return@withContext
                 }
 
-                // Сканируем ТОЛЬКО выбранную папку
-                val paths = directory.walkTopDown()
-                    .filter { it.isFile && it.extension.lowercase() in allowedExtensions }
-                    .map { it.absolutePath }
-                    .toList()
-                    .toTypedArray()
+                // Рекурсивно собираем все файлы
+                val paths = mutableListOf<String>()
+                collectAudioFiles(directory, paths)
 
                 if (paths.isEmpty()) {
                     if (showMessages) {
@@ -69,7 +68,7 @@ class MusicScanner(
                 } else {
                     MediaScannerConnection.scanFile(
                         context,
-                        paths,
+                        paths.toTypedArray(),
                         arrayOf("audio/*"),
                         null
                     )
@@ -104,6 +103,24 @@ class MusicScanner(
                 )
             }
             onComplete()
+        }
+    }
+
+    // Рекурсивно собираем пути к аудиофайлам
+    private fun collectAudioFiles(directory: DocumentFile, paths: MutableList<String>) {
+        directory.listFiles().forEach { file ->
+            if (file.isDirectory) {
+                // Рекурсивно обходим поддиректории
+                collectAudioFiles(file, paths)
+            } else if (file.isFile) {
+                val name = file.name ?: return@forEach
+                val extension = name.substringAfterLast('.', "").lowercase()
+                if (extension in allowedExtensions) {
+                    // Преобразуем URI в путь (если возможно) или используем URI напрямую
+                    val path = file.uri.toString()
+                    paths.add(path)
+                }
+            }
         }
     }
 

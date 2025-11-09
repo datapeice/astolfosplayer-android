@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
 
 data class SyncState(
     val isSyncing: Boolean = false,
@@ -248,11 +249,13 @@ class PlayerViewModel(
     init {
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                val tracks = trackRepository.getTracks()
+                val allTracks = trackRepository.getTracks()
+                val selectedFolder = settings.extraScanFolders.value.firstOrNull()
+                val filteredTracks = allTracks.filterBySelectedFolder(selectedFolder)
 
-                if (_trackList.value.size != tracks.size || !_trackList.value.containsAll(tracks)) {
+                if (_trackList.value.size != filteredTracks.size || !_trackList.value.containsAll(filteredTracks)) {
                     _trackList.update {
-                        tracks.sortedBy(_trackSort.value, _trackSortOrder.value)
+                        filteredTracks.sortedBy(_trackSort.value, _trackSortOrder.value)
                     }
 
                     if (_trackInfoSheetState.value.track != null) {
@@ -1343,9 +1346,9 @@ class PlayerViewModel(
                         },
                         onComplete = {
                             // Обновляем список треков после синхронизации
-                            val tracks = trackRepository.getTracks()
-                            _trackList.value = tracks.sortedBy(_trackSort.value, _trackSortOrder.value)
-                            Log.d("SyncProgress", "Треки обновлены: ${tracks.size} файлов")
+                            val allTracks = trackRepository.getTracks()
+                            val filteredTracks = allTracks.filterBySelectedFolder(folderUriString)
+                            _trackList.value = filteredTracks.sortedBy(_trackSort.value, _trackSortOrder.value)
                         }
                     )
                 }

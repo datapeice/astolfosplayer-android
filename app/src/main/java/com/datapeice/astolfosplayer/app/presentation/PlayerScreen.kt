@@ -350,6 +350,8 @@ fun PlayerScreen(
                             showScrollToTopButton = isScrolledEnough
                         }
 
+// kotlin
+// Замените вызов MainPlayerScreen: удалены аргументы folderPlaylists и onFolderPlaylistSelection
                         MainPlayerScreen(
                             gridState = gridState,
                             topBarTabs = tabs,
@@ -395,7 +397,6 @@ fun PlayerScreen(
                             albumPlaylists = albumPlaylists,
                             artistPlaylists = artistPlaylists,
                             genrePlaylists = genrePlaylists,
-                            folderPlaylists = folderPlaylists,
                             trackSort = trackSort,
                             trackSortOrder = trackSortOrder,
                             playlistSort = playlistSort,
@@ -455,17 +456,6 @@ fun PlayerScreen(
                                 )
                                 navController.navigate(PlayerRoutes.Playlist)
                             },
-                            onFolderPlaylistSelection = { playlist ->
-                                viewModel.onEvent(
-                                    PlayerScreenEvent.OnPlaylistSelection(
-                                        playlist
-                                    )
-                                )
-                                navController.navigate(PlayerRoutes.Playlist)
-                            },
-                            onSettingsClick = {
-                                viewModel.onEvent(PlayerScreenEvent.OnSettingsClick)
-                            },
                             replaceSearchWithFilter = replaceSearchWithFilter,
                             gridPlaylists = gridPlaylists,
                             onGridPlaylistsClick = {
@@ -473,12 +463,13 @@ fun PlayerScreen(
                                     !gridPlaylists
                                 )
                             },
-
+                            onSettingsClick = onSettingsClick, // <-- добавлено
                             onSyncClick = {
-                                viewModel.onEvent(PlayerScreenEvent.OnSyncClick) // <-- ДОБАВЛЕНО
+                                viewModel.onEvent(PlayerScreenEvent.OnSyncClick)
                             }
 
                         )
+
                     }
 
                     composable<PlayerRoutes.Playlist> {
@@ -1045,7 +1036,6 @@ fun MainPlayerScreen(
     albumPlaylists: List<Playlist>,
     artistPlaylists: List<Playlist>,
     genrePlaylists: List<Playlist>,
-    folderPlaylists: List<Playlist>,
     trackSort: TrackSort,
     trackSortOrder: SortOrder,
     playlistSort: PlaylistSort,
@@ -1056,13 +1046,11 @@ fun MainPlayerScreen(
     onAlbumPlaylistSelection: (Playlist) -> Unit,
     onArtistPlaylistSelection: (Playlist) -> Unit,
     onGenrePlaylistSelection: (Playlist) -> Unit,
-    onFolderPlaylistSelection: (Playlist) -> Unit,
     replaceSearchWithFilter: Boolean,
     gridPlaylists: Boolean,
     onGridPlaylistsClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onSyncClick: () -> Unit // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
-
+    onSyncClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -1705,71 +1693,8 @@ fun MainPlayerScreen(
                 }
             }
 
-            Tab.Folders -> {
-                if (gridPlaylists) {
-                    if (!isInSelectionMode) {
-                        playlistCards(
-                            playlists = folderPlaylists.filterPlaylists(searchFieldValue),
-                            sort = playlistSort,
-                            sortOrder = playlistSortOrder,
-                            fallbackPlaylistTitle = context.resources.getString(R.string.unknown_folder),
-                            onCardClick = onFolderPlaylistSelection,
-                            onLongClick = {
-                                isInSelectionMode = true
-                                selectedPlaylists.add(it)
-                            }
-                        )
-                    } else {
-                        selectionCards(
-                            playlists = folderPlaylists.filterPlaylists(searchFieldValue),
-                            selectedPlaylists = selectedPlaylists,
-                            sort = playlistSort,
-                            sortOrder = playlistSortOrder,
-                            fallbackPlaylistTitle = context.resources.getString(R.string.unknown_folder),
-                            onCardClick = {
-                                if (it in selectedPlaylists) {
-                                    selectedPlaylists.remove(it)
-                                } else selectedPlaylists.add(it)
 
-                                if (selectedPlaylists.isEmpty()) {
-                                    isInSelectionMode = false
-                                }
-                            }
-                        )
-                    }
-                } else {
-                    if (!isInSelectionMode) {
-                        playlistRows(
-                            playlists = folderPlaylists.filterPlaylists(searchFieldValue),
-                            sort = playlistSort,
-                            sortOrder = playlistSortOrder,
-                            fallbackPlaylistTitle = context.resources.getString(R.string.unknown_folder),
-                            onRowClick = onFolderPlaylistSelection,
-                            onLongClick = {
-                                isInSelectionMode = true
-                                selectedPlaylists.add(it)
-                            }
-                        )
-                    } else {
-                        selectionRows(
-                            playlists = folderPlaylists.filterPlaylists(searchFieldValue),
-                            selectedPlaylists = selectedPlaylists,
-                            sort = playlistSort,
-                            sortOrder = playlistSortOrder,
-                            fallbackPlaylistTitle = context.resources.getString(R.string.unknown_folder),
-                            onRowClick = {
-                                if (it in selectedPlaylists) {
-                                    selectedPlaylists.remove(it)
-                                } else selectedPlaylists.add(it)
-
-                                if (selectedPlaylists.isEmpty()) {
-                                    isInSelectionMode = false
-                                }
-                            }
-                        )
-                    }
-                }
-            }
+            else -> {}
         }
     }
 }
