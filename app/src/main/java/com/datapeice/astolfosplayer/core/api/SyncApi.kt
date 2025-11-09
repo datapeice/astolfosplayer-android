@@ -2,23 +2,22 @@ package com.datapeice.astolfosplayer.core.api
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.ui.res.stringResource
 import androidx.documentfile.provider.DocumentFile
 import com.datapeice.astolfosplayer.R
 import com.datapeice.astolfosplayer.core.data.Settings
 import com.datapeice.astolfosplayer.core.utils.FileHasher
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.forms.InputProvider
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.prepareGet
-import io.ktor.client.statement.HttpStatement
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import io.ktor.http.contentRangeHeaderValue
 import io.ktor.utils.io.jvm.javaio.copyTo
 import io.ktor.utils.io.streams.asInput
 
@@ -39,21 +38,32 @@ class KtorSyncApi(
 
     private val serverAddress: String get() = settings.serverAddress
 
+    private fun isCriticalNetworkError(e: Exception): Boolean {
+        return when (e) {
+            is java.net.ConnectException,
+            is java.net.UnknownHostException,
+            is java.net.SocketTimeoutException -> true
+            else -> e.message?.contains("Unable to resolve host") == true ||
+                    e.message?.contains("Failed to connect") == true
+        }
+    }
+
     override suspend fun performSync(
         localFolder: DocumentFile,
         onProgress: (current: Int, total: Int, message: String) -> Unit,
         onComplete: suspend () -> Unit
     ) {
         var currentStep = 0
+        var hasErrors = false
 
-        onProgress(currentStep, 1, context.getString( R.string.getting_status))
+        onProgress(currentStep, 1, context.getString(R.string.getting_status))
         val serverFiles = try {
             httpClient.get("$serverAddress/api/sync/status") {
                 bearerAuth(settings.accessToken)
             }.body<List<SyncStatusItem>>()
         } catch (e: Exception) {
-            onProgress(0, 1, context.getString(R.string.error_message, e.message ?: ""))
-            // Log.e("SyncApi", "Ошибка получения статуса", e)
+            onProgress(0, 1, context.getString(R.string.error_message, e.message ?: "Unknown error"))
+            Log.e("SyncApi", "Failed to get server status", e)
             return
         }
         val serverHashes = serverFiles.associate { it.fileHash to it.filename }
@@ -92,29 +102,74 @@ class KtorSyncApi(
             onProgress(currentStep, totalSteps, context.getString(R.string.uploading_file_progress, index + 1, filesToUpload.size, fileName))
 
             try {
-                context.contentResolver.openInputStream(file.uri)?.use { inputStream ->
-                    httpClient.submitFormWithBinaryData(
-                        url = "$serverAddress/api/tracks/upload",
-                        formData = formData {
-                            append("file", inputStream.asInput(), Headers.build {
-                                append(HttpHeaders.ContentType,
-                                    if (fileName.endsWith(".flac", true)) "audio/flac" else "audio/mpeg")
-                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
-                            })
-                            append("title", fileName.substringBeforeLast("."))
+                val fileSize = file.length()
+                val fileSizeMB = fileSize / 1024 / 1024
+                Log.d("SyncApi", "Uploading $fileName, size: $fileSizeMB MB")
+
+                val tempFile = java.io.File(context.cacheDir, "upload_temp_${System.currentTimeMillis()}")
+                try {
+                    val startCopy = System.currentTimeMillis()
+                    context.contentResolver.openInputStream(file.uri)?.use { inputStream ->
+                        tempFile.outputStream().use { outputStream ->
+                            inputStream.copyTo(outputStream, bufferSize = 8192)
                         }
-                    ) {
-                        bearerAuth(settings.accessToken)
                     }
+                    Log.d("SyncApi", "File copied to temp in ${System.currentTimeMillis() - startCopy}ms")
+
+                    tempFile.inputStream().use { inputStream ->
+                        val startUpload = System.currentTimeMillis()
+                        val response = httpClient.submitFormWithBinaryData(
+                            url = "$serverAddress/api/tracks/upload",
+                            formData = formData {
+                                append(
+                                    "file",
+                                    InputProvider(fileSize) { inputStream.asInput() },
+                                    Headers.build {
+                                        append(HttpHeaders.ContentType,
+                                            if (fileName.endsWith(".flac", true)) "audio/flac" else "audio/mpeg")
+                                        append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                                    }
+                                )
+                                append("title", fileName.substringBeforeLast("."))
+                            }
+                        ) {
+                            bearerAuth(settings.accessToken)
+                            timeout {
+                                requestTimeoutMillis = 600_000
+                                socketTimeoutMillis = 600_000
+                            }
+                        }
+
+                        Log.d("SyncApi", "Upload HTTP request took ${System.currentTimeMillis() - startUpload}ms")
+
+                        val trackMetadata = response.body<TrackMetadata>()
+                        Log.d("SyncApi", "Upload successful: ${trackMetadata.filename}, hash: ${trackMetadata.fileHash}")
+                    }
+                } finally {
+                    if (tempFile.exists()) tempFile.delete()
                 }
+
                 onProgress(currentStep, totalSteps, context.getString(R.string.file_uploaded, fileName))
+            } catch (e: OutOfMemoryError) {
+                hasErrors = true
+                val errorMsg = context.getString(R.string.upload_error, fileName) + ": File too large"
+                onProgress(currentStep, totalSteps, errorMsg)
+                Log.e("SyncApi", "OOM error for $fileName", e)
             } catch (e: Exception) {
-                onProgress(currentStep, totalSteps, context.getString(R.string.upload_error, fileName))
-                //Log.e("SyncApi", "Ошибка загрузки $fileName", e)
+                hasErrors = true
+                val errorMsg = context.getString(R.string.upload_error, fileName) +
+                        if (e.message != null) ": ${e.message}" else ""
+                onProgress(currentStep, totalSteps, errorMsg)
+                Log.e("SyncApi", "Upload error for $fileName", e)
+
+                if (isCriticalNetworkError(e)) {
+                    onProgress(currentStep, totalSteps, context.getString(R.string.error_message, "Server unavailable"))
+                    return
+                }
             }
         }
 
-        // --- Скачиваем файлы через HttpStatement ---
+        // --- Скачиваем файлы ---
         var allServerTracks: List<Track>? = null
         for ((index, syncItem) in filesToDownload.withIndex()) {
             currentStep++
@@ -127,6 +182,7 @@ class KtorSyncApi(
                 }
                 val trackToDownload = allServerTracks.find { it.fileHash == syncItem.fileHash }
                 if (trackToDownload == null) {
+                    hasErrors = true
                     onProgress(currentStep, totalSteps, context.getString(R.string.id_not_found_for_file, filename))
                     continue
                 }
@@ -137,7 +193,6 @@ class KtorSyncApi(
                 if (newFile != null) {
                     var totalWritten = 0L
 
-                    // Используем HttpStatement для прямого стриминга без буферизации
                     httpClient.prepareGet("$serverAddress/api/tracks/${trackToDownload.id}/file") {
                         bearerAuth(settings.accessToken)
                     }.execute { response ->
@@ -146,24 +201,33 @@ class KtorSyncApi(
                         }
                     }
 
-                    //Log.d("SyncApi", "Downloaded $filename: $totalWritten bytes")
+                    Log.d("SyncApi", "Downloaded $filename: $totalWritten bytes")
                     onProgress(currentStep, totalSteps, context.getString(R.string.file_downloaded, filename))
                 } else {
+                    hasErrors = true
                     onProgress(currentStep, totalSteps, context.getString(R.string.failed_to_create_file, filename))
                 }
 
             } catch (e: Exception) {
+                hasErrors = true
                 onProgress(currentStep, totalSteps, context.getString(R.string.error_file, filename))
-                //Log.e("SyncApi", "Ошибка скачивания $filename", e)
+                Log.e("SyncApi", "Download error for $filename", e)
             }
         }
 
+        // --- Завершение ---
         onProgress(totalSteps, totalSteps, context.getString(R.string.updating_library))
         try {
             onComplete()
-            onProgress(totalSteps, totalSteps, context.getString(R.string.synchronization_completed))
+            val finalMessage = if (hasErrors) {
+                context.getString(R.string.synchronization_completed) + " (with errors)"
+            } else {
+                context.getString(R.string.synchronization_completed)
+            }
+            onProgress(totalSteps, totalSteps, finalMessage)
         } catch (e: Exception) {
-            //Log.e("SyncApi", "Ошибка обновления библиотеки", e)
+            Log.e("SyncApi", "Library update error", e)
+            onProgress(totalSteps, totalSteps, context.getString(R.string.synchronization_completed) + " (library update failed)")
         }
     }
 }
