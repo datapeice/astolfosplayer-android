@@ -12,14 +12,18 @@ import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.utils.io.ByteReadChannel
 import java.io.File
 import kotlin.text.append
+import kotlin.text.get
 
 /**
  * Интерфейс для работы с треками на сервере.
  */
 interface TrackApi {
     suspend fun getAllTracks(): List<Track>
+    suspend fun downloadTrackStream(trackId: String): ByteReadChannel
+
     suspend fun getTrack(trackId: String): Track
     suspend fun downloadTrackFile(trackId: String): ByteArray
     suspend fun uploadTrack(
@@ -50,7 +54,11 @@ class KtorTrackApi(
             bearerAuth(settings.accessToken)
         }.body()
     }
-
+    override suspend fun downloadTrackStream(trackId: String): ByteReadChannel {
+        return httpClient.get("${settings.serverAddress}/api/tracks/$trackId/download") {
+            bearerAuth(settings.accessToken)
+        }.body()
+    }
     override suspend fun getTrack(trackId: String): Track {
         return httpClient.get("$serverAddress/api/tracks/$trackId") {
             bearerAuth(settings.accessToken)

@@ -22,10 +22,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -117,8 +120,20 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import androidx.compose.material.icons.rounded.ImportExport
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import com.datapeice.astolfosplayer.app.presentation.components.SyncProgressBar
+import kotlin.text.toInt
+import kotlin.times
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import kotlin.text.toInt
+import kotlin.times
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -194,22 +209,23 @@ fun PlayerScreen(
         animationSpec = tween(300, 200),
         animate = true
     ) {
-        val rippleColor = MaterialTheme.colorScheme.primaryContainer
+        val rippleColor = colorScheme.primaryContainer
         val ripple = remember(rippleColor) {
             ripple(color = rippleColor)
         }
         val rippleConfiguration = remember(rippleColor) {
             RippleConfiguration(color = rippleColor)
         }
+
         CompositionLocalProvider(
             LocalIndication provides ripple,
             LocalRippleConfiguration provides rippleConfiguration,
-            LocalContentColor provides MaterialTheme.colorScheme.onSurface
+            LocalContentColor provides colorScheme.onSurface
         ) {
 
             Box(
                 modifier = modifier
-                    .background(color = MaterialTheme.colorScheme.background)
+                    .background(color = colorScheme.background)
             ) {
                 val context = LocalContext.current
                 val playbackState by viewModel.playbackState.collectAsState()
@@ -724,12 +740,14 @@ fun PlayerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.BottomCenter),
+                        .align(Alignment.BottomCenter)
+
                 ) {
                     val isPlayerExpanded by remember {
                         derivedStateOf { playbackState.isPlayerExpanded }
                     }
                     val syncState by viewModel.syncState.collectAsState()
+
                     if (!isPlayerExpanded) {
                         ScrollToTopAndLocateButtons(
                             showScrollToTopButton = showScrollToTopButton,
@@ -738,57 +756,85 @@ fun PlayerScreen(
                             onLocateClick = onLocateClick,
                             modifier = Modifier.align(Alignment.End)
                         )
-                    }
-                    // --- НАЧАЛО ИСПРАВЛЕННОГО БЛОКА ---
-                    AnimatedVisibility(
-                        visible = syncState.isSyncing,
-                        enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
-                        exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
-                    ) {
-                        // Обертка Box для управления шириной и выравниванием
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp), // Отступ только снизу
-                            contentAlignment = Alignment.Center
+
+                        // Прогресс-бар синхронизации
+                        AnimatedVisibility(
+                            visible = syncState.isSyncing,
+                            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp), // Внутренние отступы
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = if (!(currentTrack != null)) Modifier.safeDrawingPadding() else Modifier
                             ) {
-                                // Текст с сообщением синхронизации
-                                Text(
-                                    text = syncState.message,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
-
-                                // Прогресс-бар без закруглений
-                                LinearProgressIndicator(
-                                    progress = syncState.progress,
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(4.dp), // Тонкая линия
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .background(
+                                            color = colorScheme.surfaceContainerHigh,
+                                            shape = MaterialTheme.shapes.small
+                                        )
+                                ) {
+                                    // фон-заливка, заполняющая ширину по прогрессу и обрезанная по той же форме
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clip(MaterialTheme.shapes.small)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(fraction = syncState.progress)
+                                                .fillMaxHeight()
+                                                .background(
+                                                    color = colorScheme.primary.copy(alpha = 0.2f),
+                                                    shape = MaterialTheme.shapes.small
+                                                )
+                                        )
+                                    }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource( R.string.synchronization),
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                color = colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = syncState.message,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Text(
+                                            text = "${(syncState.progress * 100).toInt()}%",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            color = colorScheme.primary
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-// --- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ---
-
 
                     AnimatedVisibility(
                         visible = currentTrack != null,
                         enter = slideInVertically(initialOffsetY = { it }),
                         exit = slideOutVertically(targetOffsetY = { it }),
-                        modifier = Modifier
-                            .align(alignment = Alignment.CenterHorizontally)
+                        modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
                     ) {
                         currentTrack?.let {
-
                             if (useAlbumArtColor) {
                                 LaunchedEffect(coverArtBitmap) {
                                     coverArtBitmap?.let {
@@ -1226,7 +1272,7 @@ fun MainPlayerScreen(
 
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.background(color = MaterialTheme.colorScheme.background)
+                            modifier = Modifier.background(color = colorScheme.background)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
@@ -1758,8 +1804,8 @@ fun ScrollToTopAndLocateButtons(
                     }
                 },
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    containerColor = colorScheme.surfaceContainer,
+                    contentColor = colorScheme.onSurfaceVariant
                 )
             ) {
                 Icon(
@@ -1781,8 +1827,8 @@ fun ScrollToTopAndLocateButtons(
                     }
                 },
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    containerColor = colorScheme.surfaceContainer,
+                    contentColor = colorScheme.onSurfaceVariant
                 )
             ) {
                 Icon(

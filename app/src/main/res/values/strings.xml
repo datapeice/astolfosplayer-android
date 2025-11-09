@@ -385,6 +385,23 @@
     <string name="synchronization_error">Synchronization error</string>
     <string name="access_folder_error">Unable to access this folder</string>
     <string name="folder_not_found">Folder not found</string>
+    <string name="folder_for_sync_not_selected">Folder for sync not selected</string>
+    <string name="synchronization">Synchronization</string>
+    <string name="getting_status">Getting status from server...</string>
+    <string name="error_message">Error: %1$s</string>
+    <string name="analyzing_local_files">Analyzing local files...</string>
+    <string name="all_files_synchronized">All files synchronized</string>
+    <string name="files_found_to_upload_download">Found: %1$d to upload, %2$d to download</string>
+    <string name="uploading_file_progress">Uploading %1$d/%2$d: %3$s</string>
+    <string name="file_uploaded">Uploaded: %1$s</string>
+    <string name="upload_error">Upload error: %1$s</string>
+    <string name="downloading_file_progress">Downloading %1$d/%2$d: %3$s...</string>
+    <string name="id_not_found_for_file">ID not found for: %1$s</string>
+    <string name="file_downloaded">Downloaded: %1$s</string>
+    <string name="failed_to_create_file">Failed to create: %1$s</string>
+    <string name="error_file">Error: %1$s</string>
+    <string name="updating_library">Updating library...</string>
+    <string name="synchronization_completed">Synchronization completed</string>
 
 
 </resources>

@@ -1302,21 +1302,20 @@ class PlayerViewModel(
 
 
     private fun onSyncClick() {
-        if (_syncState.value.isSyncing) return // Не запускаем вторую синхронизацию, если одна уже идет
-        viewModelScope.launch { // Стартуем в главном потоке
+        if (_syncState.value.isSyncing) return
+        viewModelScope.launch {
             try {
                 val folderUriString = settings.extraScanFolders.value.firstOrNull()
                 if (folderUriString.isNullOrBlank()) {
                     _syncState.value = SyncState(
                         isSyncing = false,
-                        message = "Папка для синхронизации не выбрана. Пожалуйста, выберите ее в настройках."
+                        message = context.getString(R.string.folder_for_sync_not_selected)
                     )
                     delay(3000)
                     _syncState.value = SyncState()
                     return@launch
                 }
 
-                // 2. Преобразуем URI строки в DocumentFile
                 val folderUri = Uri.parse(folderUriString)
                 val musicFolder = DocumentFile.fromTreeUri(context, folderUri)
                 if (musicFolder == null || !musicFolder.exists()) {
@@ -1329,32 +1328,39 @@ class PlayerViewModel(
                     return@launch
                 }
 
-                // 3. Выполняем тяжелую работу в фоновом потоке
                 withContext(Dispatchers.IO) {
-                    syncApi.performSync(musicFolder) { current, total, message ->
-                        // 4. Обновляем UI в главном потоке
-                        launch(Dispatchers.Main) {
-                            _syncState.value = SyncState(
-                                isSyncing = true,
-                                message = message,
-                                progress = if (total > 0) current.toFloat() / total else 0f
-                            )
-                            Log.d("SyncProgress", "$current/$total: $message")
+                    syncApi.performSync(
+                        localFolder = musicFolder,
+                        onProgress = { current: Int, total: Int, message: String ->
+                            launch(Dispatchers.Main) {
+                                _syncState.value = SyncState(
+                                    isSyncing = true,
+                                    message = message,
+                                    progress = if (total > 0) current.toFloat() / total else 0f
+                                )
+                                Log.d("SyncProgress", "$current/$total: $message")
+                            }
+                        },
+                        onComplete = {
+                            // Обновляем список треков после синхронизации
+                            val tracks = trackRepository.getTracks()
+                            _trackList.value = tracks.sortedBy(_trackSort.value, _trackSortOrder.value)
+                            Log.d("SyncProgress", "Треки обновлены: ${tracks.size} файлов")
                         }
-                    }
+                    )
                 }
 
-                // 5. Синхронизация успешно завершена
                 _syncState.value = _syncState.value.copy(
                     message = context.getString(R.string.synchronization_finished),
                     progress = 1f
                 )
-                delay(2000) // Показываем сообщение 2 секунды
+                delay(2000)
             } finally {
                 _syncState.value = SyncState(isSyncing = false)
             }
         }
     }
+
 
 
     fun playTrackFromUri(uri: Uri) {
