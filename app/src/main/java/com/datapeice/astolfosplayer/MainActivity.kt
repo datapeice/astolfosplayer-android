@@ -331,7 +331,9 @@ class MainActivity : ComponentActivity() {
                                         onBackPressedDispatcher.onBackPressed()
                                     },
                                     modifier = Modifier.fillMaxSize(),
-
+                                    onDeleteClick = {
+                                        viewModel.onEvent(PlayerScreenEvent.OnDeleteClick)
+                                    }
 
                                 )
                             }

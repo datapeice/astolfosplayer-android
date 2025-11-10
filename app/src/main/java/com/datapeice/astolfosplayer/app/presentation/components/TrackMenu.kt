@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.AddToQueue
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
@@ -31,9 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.datapeice.astolfosplayer.R
+import com.datapeice.astolfosplayer.app.presentation.PlayerScreenEvent
+import kotlin.invoke
 
 @Composable
 fun TrackMenu(
@@ -45,7 +50,8 @@ fun TrackMenu(
     onViewTrackInfoClick: () -> Unit,
     onGoToAlbumClick: () -> Unit,
     onGoToArtistClick: () -> Unit,
-    onRemoveFromPlaylistClick: (() -> Unit)? = null
+    onRemoveFromPlaylistClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null
 ) {
     DropdownMenu(
         expanded = isExpanded,
@@ -126,7 +132,9 @@ fun TrackMenu(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
             ) {
                 IconButton(
                     onClick = {
@@ -134,7 +142,7 @@ fun TrackMenu(
                         onDismissRequest()
                     },
                     modifier = Modifier
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 6.dp, vertical = 8.dp)
                         .size(24.dp)
                 ) {
                     Icon(
@@ -150,6 +158,7 @@ fun TrackMenu(
                         onDismissRequest()
                     },
                     modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 8.dp)
                         .size(24.dp)
                 ) {
                     Icon(
@@ -158,39 +167,40 @@ fun TrackMenu(
                         contentDescription = context.resources.getString(R.string.go_to_artist)
                     )
                 }
-            }
 
-            IconButton(
-                onClick = {
-                    onViewTrackInfoClick()
-                    onDismissRequest()
-                },
-                modifier = Modifier
-                    .padding(horizontal = 12.dp)
-                    .size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Info,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    contentDescription = context.resources.getString(R.string.track_info)
-                )
+                IconButton(
+                    onClick = {
+                        onDeleteClick?.invoke()
+                        onDismissRequest()
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 8.dp)
+                        .size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        tint = MaterialTheme.colorScheme.error,
+                        contentDescription = context.resources.getString(R.string.delete)
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        onViewTrackInfoClick()
+                        onDismissRequest()
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 8.dp)
+                        .size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        contentDescription = context.resources.getString(R.string.track_info)
+                    )
+                }
             }
         }
-        /*DropdownMenuItem(
-            text = {
-                Text(text = context.resources.getString(R.string.track_info))
-            },
-            onClick = {
-                onViewTrackInfoClick()
-                onDismissRequest()
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Rounded.AudioFile,
-                    contentDescription = null
-                )
-            }
-        )*/
     }
 }
 
@@ -203,6 +213,7 @@ fun TrackMenuButton(
     onGoToAlbumClick: () -> Unit,
     onGoToArtistClick: () -> Unit,
     onRemoveFromPlaylistClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null// НОВЫЙ параметр
 ) {
     Box {
         var isMenuExpanded by remember {
@@ -231,7 +242,9 @@ fun TrackMenuButton(
             onViewTrackInfoClick = onViewTrackInfoClick,
             onGoToAlbumClick = onGoToAlbumClick,
             onGoToArtistClick = onGoToArtistClick,
-            onRemoveFromPlaylistClick = onRemoveFromPlaylistClick
+            onRemoveFromPlaylistClick = onRemoveFromPlaylistClick,
+            onDeleteClick = onDeleteClick
+
         )
     }
 }

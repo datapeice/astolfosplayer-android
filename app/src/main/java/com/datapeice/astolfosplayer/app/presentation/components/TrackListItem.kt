@@ -36,6 +36,7 @@ fun TrackListItem(
     onAddToQueueClick: () -> Unit,
     onAddToPlaylistClick: () -> Unit,
     onViewTrackInfoClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     onGoToAlbumClick: () -> Unit,
     onGoToArtistClick: () -> Unit,
     onRemoveFromPlaylistClick: (() -> Unit)? = null,
@@ -99,7 +100,8 @@ fun TrackListItem(
                 onViewTrackInfoClick = onViewTrackInfoClick,
                 onGoToAlbumClick = onGoToAlbumClick,
                 onGoToArtistClick = onGoToArtistClick,
-                onRemoveFromPlaylistClick = onRemoveFromPlaylistClick
+                onRemoveFromPlaylistClick = onRemoveFromPlaylistClick,
+                onDeleteClick = onDeleteClick
             )
 
             dragHandle?.invoke()

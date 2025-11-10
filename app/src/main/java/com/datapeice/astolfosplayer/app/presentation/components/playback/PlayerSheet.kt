@@ -123,6 +123,7 @@ fun PlayerSheet(
     onReorderingQueue: (Int, Int) -> Unit,
     onTrackClick: (Track, Playlist) -> Unit,
     settings: Settings,
+    onDeleteClick: (() -> Unit)? = null, // ВАЖНО: nullable
     modifier: Modifier = Modifier
 ) {
     val playbackState by playbackStateFlow.collectAsState()
@@ -305,6 +306,7 @@ fun PlayerSheet(
                     onRemoveFromQueueClick = onRemoveFromQueueClick,
                     onReorderingQueue = onReorderingQueue,
                     onTrackClick = onTrackClick,
+                    onDeleteClick = onDeleteClick,
                     modifier = Modifier.clickable(
                         onClick = {},
                         interactionSource = null,
@@ -493,6 +495,7 @@ fun ExpandedPlayer(
     onRemoveFromQueueClick: (Int) -> Unit,
     onReorderingQueue: (Int, Int) -> Unit,
     onTrackClick: (Track, Playlist) -> Unit,
+    onDeleteClick: (() -> Unit)? = null, // nullable
     modifier: Modifier = Modifier
 ) {
     BackHandler {
@@ -614,7 +617,8 @@ fun ExpandedPlayer(
                             onAddToPlaylistClick = onAddToPlaylistClick,
                             onViewTrackInfoClick = onViewTrackInfoClick,
                             onGoToAlbumClick = onGoToAlbumClick,
-                            onGoToArtistClick = onGoToArtistClick
+                            onGoToArtistClick = onGoToArtistClick,
+                            onDeleteClick = onDeleteClick
                         )
                     }
                 }
@@ -812,7 +816,8 @@ fun ExpandedPlayer(
                                     onAddToPlaylistClick = onAddToPlaylistClick,
                                     onViewTrackInfoClick = onViewTrackInfoClick,
                                     onGoToAlbumClick = onGoToAlbumClick,
-                                    onGoToArtistClick = onGoToArtistClick
+                                    onGoToArtistClick = onGoToArtistClick,
+                                    onDeleteClick = onDeleteClick
                                 )
                             }
                         }

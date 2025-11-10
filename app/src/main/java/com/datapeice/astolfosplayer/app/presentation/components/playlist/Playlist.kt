@@ -72,7 +72,8 @@ fun Playlist(
     trackSortOrder: SortOrder,
     onTrackSortChange: (TrackSort?, SortOrder?) -> Unit,
     onBackClick: () -> Unit,
-    replaceSearchWithFilter: Boolean
+    replaceSearchWithFilter: Boolean,
+    onDeleteClick: (Track) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -357,7 +358,8 @@ fun Playlist(
                 onLongClick = {
                     isInSelectionMode = true
                     selectedTracks.add(it)
-                }
+                },
+                onDeleteClick = onDeleteClick
             )
         } else {
             selectionList(

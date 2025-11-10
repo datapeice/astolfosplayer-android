@@ -19,6 +19,8 @@ import com.datapeice.astolfosplayer.app.data.repository.RealmPlaylistRepository
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepository
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepositoryImpl
 import com.datapeice.astolfosplayer.app.presentation.PlayerViewModel
+import com.datapeice.astolfosplayer.core.api.KtorTrackApi
+import com.datapeice.astolfosplayer.core.api.TrackApi
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -45,7 +47,12 @@ val playerModule = module {
             context = androidContext()
         )
     }
-
+    single<TrackApi> {
+        KtorTrackApi(
+            httpClient = get(),
+            settings = get()
+        )
+    }
     single<HttpClient> {
         HttpClient(CIO) {
             install(ContentNegotiation) {
@@ -126,7 +133,8 @@ val playerModule = module {
             musicScanner = get(),
             equalizerController = get(),
             setupViewModel = get(),
-            context = get()
+            context = get(),
+            trackApi = get()
         )
     }
 }

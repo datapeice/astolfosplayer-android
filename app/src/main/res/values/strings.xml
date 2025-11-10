@@ -402,6 +402,9 @@
     <string name="error_file">Error: %1$s</string>
     <string name="updating_library">Updating library...</string>
     <string name="synchronization_completed">Synchronization completed</string>
+    <string name="track_deleted">Track deleted\n</string>
+    <string name="request_timeout">Request timeout</string>
+    <string name="delete_error">Delete error</string>
 
 
 </resources>

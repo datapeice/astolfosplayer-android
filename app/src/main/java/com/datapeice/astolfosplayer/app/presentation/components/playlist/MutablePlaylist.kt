@@ -91,7 +91,8 @@ fun MutablePlaylist(
     onGoToArtistClick: (Track) -> Unit,
     onTrackListReorder: (List<Track>) -> Unit,
     onBackClick: () -> Unit,
-    replaceSearchWithFilter: Boolean
+    replaceSearchWithFilter: Boolean,
+    onDeleteClick: (Track) -> Unit
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -481,6 +482,7 @@ fun MutablePlaylist(
                                 )
                             }
                         },
+                        onDeleteClick = {onDeleteClick(track)},
                         modifier = Modifier
                             .fillMaxWidth()
                             .graphicsLayer {

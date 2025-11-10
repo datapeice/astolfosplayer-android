@@ -146,7 +146,8 @@ fun PlayerScreen(
     onSyncClick: () -> Unit, // <-- ДОБАВЛЕНО
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null, // NULLABLE
 ) {
     val useDynamicColor by viewModel.settings.useDynamicColor.collectAsState()
     val useAlbumArtColor by viewModel.settings.useAlbumArtColor.collectAsState()
@@ -225,6 +226,7 @@ fun PlayerScreen(
 
             Box(
                 modifier = modifier
+                    .background(color = colorScheme.background)
                     .background(color = colorScheme.background)
             ) {
                 val context = LocalContext.current
@@ -466,6 +468,9 @@ fun PlayerScreen(
                             onSettingsClick = onSettingsClick, // <-- добавлено
                             onSyncClick = {
                                 viewModel.onEvent(PlayerScreenEvent.OnSyncClick)
+                            },
+                            onDeleteClick = {
+                                viewModel.onEvent(PlayerScreenEvent.OnDeleteClick)
                             }
 
                         )
@@ -565,7 +570,10 @@ fun PlayerScreen(
                                 onBackClick = {
                                     navController.navigateUp()
                                 },
-                                replaceSearchWithFilter = replaceSearchWithFilter
+                                replaceSearchWithFilter = replaceSearchWithFilter,
+                                onDeleteClick = onDeleteClick?.let { deleteCallback ->
+                                    { track -> deleteCallback() }
+                                } ?: {}
                             )
                         }
                     }
@@ -687,7 +695,8 @@ fun PlayerScreen(
                                 onBackClick = {
                                     navController.navigateUp()
                                 },
-                                replaceSearchWithFilter = replaceSearchWithFilter
+                                replaceSearchWithFilter = replaceSearchWithFilter,
+                                onDeleteClick = onDeleteClick as (Track) -> Unit
                             )
 
                             if (showRenameSheet) {
@@ -910,6 +919,7 @@ fun PlayerScreen(
                                 onReorderingQueue = { from, to ->
                                     viewModel.onEvent(PlayerScreenEvent.OnReorderingQueue(from, to))
                                 },
+
                                 onTrackClick = { track, playlist ->
                                     viewModel.onEvent(
                                         PlayerScreenEvent.OnTrackClick(
@@ -918,6 +928,7 @@ fun PlayerScreen(
                                         )
                                     )
                                 },
+                                onDeleteClick = onDeleteClick,
                                 modifier = Modifier
                                     .align(alignment = Alignment.CenterHorizontally)
                                     .fillMaxWidth()
@@ -1017,6 +1028,8 @@ fun PlayerScreen(
     }
 }
 
+
+
 @Composable
 fun MainPlayerScreen(
     gridState: LazyGridState = rememberLazyGridState(),
@@ -1050,7 +1063,8 @@ fun MainPlayerScreen(
     gridPlaylists: Boolean,
     onGridPlaylistsClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onSyncClick: () -> Unit
+    onSyncClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -1399,6 +1413,9 @@ fun MainPlayerScreen(
                         onViewTrackInfoClick = onViewTrackInfoClick,
                         onGoToAlbumClick = onGoToAlbumClick,
                         onGoToArtistClick = onGoToArtistClick,
+                        onDeleteClick = onDeleteClick?.let { deleteCallback ->
+                            { track -> deleteCallback() }
+                        }?: {},
                         onLongClick = {
                             isInSelectionMode = true
                             selectedTracks.add(it)

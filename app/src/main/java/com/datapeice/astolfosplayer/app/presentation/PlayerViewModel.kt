@@ -2,6 +2,7 @@ package com.datapeice.astolfosplayer.app.presentation
 
 import android.content.Context
 import android.net.Uri
+import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastFirstOrNull
@@ -61,6 +62,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
+import com.datapeice.astolfosplayer.core.api.TrackApi
+import java.io.File
+import kotlin.toString
 
 data class SyncState(
     val isSyncing: Boolean = false,
@@ -81,7 +85,9 @@ class PlayerViewModel(
     private val musicScanner: MusicScanner,
     private val equalizerController: EqualizerController,
     private val setupViewModel: SetupViewModel,
-    private val context: Context
+    private val context: Context,
+    private val trackApi: TrackApi, // <-- добавьте это
+
 ) : ViewModel() {
     var player: Player? = null
     private val _syncState = MutableStateFlow(SyncState())
@@ -1081,7 +1087,11 @@ class PlayerViewModel(
                     }
                 }
             }
-
+            is OnDeleteClick -> {
+                playbackState.value.currentTrack?.let { track ->
+                    deleteTrack(track, trackApi)
+                }
+            }
             OnSettingsClick -> {
                 _settingsSheetState.update {
                     it.copy(
@@ -1300,6 +1310,8 @@ class PlayerViewModel(
                     }
                 }
             }
+
+            else -> {}
         }
     }
 
@@ -1379,6 +1391,65 @@ class PlayerViewModel(
             )
         }
     }
+    fun deleteTrack(track: Track, trackApi: TrackApi) {
+        viewModelScope.launch {
+            try {
+//                // 1. Удалить с сервера
+//                trackApi.deleteTrack(track.uri.toString())
+//                Log.d("DeleteTrack", "Удалено с сервера: ${track.title}")
+
+                // 2. Удалить локальный файл
+                track.uri.path?.let { path ->
+                    val file = File(path)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                }
+
+                // 3. Удалить из MediaStore
+                context.contentResolver.delete(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    "${MediaStore.Audio.Media.DATA} = ?",
+                    arrayOf(track.data)
+                )
+
+                // 4. Обновить список треков
+                _trackList.value = _trackList.value.filter { it.uri != track.uri }
+
+                // 5. Переключиться на следующий трек если удалён текущий
+                if (playbackState.value.currentTrack?.uri == track.uri) {
+                    player?.let { player ->
+                        if (player.hasNextMediaItem()) {
+                            player.seekToNextMediaItem()
+                        } else if (player.hasPreviousMediaItem()) {
+                            player.seekToPreviousMediaItem()
+                        } else {
+                            onEvent(OnResetPlayback)
+                        }
+                    }
+                }
+
+                // 6. Показать сообщение об успехе
+                SnackbarController.sendEvent(
+                    SnackbarEvent(message = R.string.track_deleted)
+                )
+
+            } catch (e: Exception) {
+                Log.e("DeleteTrack", "Ошибка удаления", e)
+                SnackbarController.sendEvent(
+                    SnackbarEvent(
+                        message = when (e) {
+                            is java.net.UnknownHostException -> R.string.no_internet
+                            is java.net.SocketTimeoutException -> R.string.request_timeout
+                            else -> R.string.delete_error
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+
 
     fun onFolderPicked(path: String) {
         if (settings.isScanModeInclusive.value) {
@@ -1620,4 +1691,7 @@ class PlayerViewModel(
     private fun <T> List<T>.nextAfterOrNull(index: Int): T? {
         return getOrNull((index + 1) % size)
     }
+
+
+
 }
