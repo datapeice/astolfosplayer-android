@@ -405,6 +405,8 @@
     <string name="track_deleted">Track deleted\n</string>
     <string name="request_timeout">Request timeout</string>
     <string name="delete_error">Delete error</string>
+    <string name="confirm_delete_title">Delete File?</string>
+    <string name="confirm_delete_message">Yes</string>
 
 
 </resources>

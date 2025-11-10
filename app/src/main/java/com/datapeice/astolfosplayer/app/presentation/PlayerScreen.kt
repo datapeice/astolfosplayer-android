@@ -147,11 +147,12 @@ fun PlayerScreen(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit,
-    onDeleteClick: (() -> Unit)? = null, // NULLABLE
+    onDeleteClick: ((Track) -> Unit)? = null, // NULLABLE
 ) {
     val useDynamicColor by viewModel.settings.useDynamicColor.collectAsState()
     val useAlbumArtColor by viewModel.settings.useAlbumArtColor.collectAsState()
     val dominantColorState = rememberDominantColorState()
+    val trackToDelete = remember { mutableStateOf<Track?>(null) }
     var coverArtBitmap by remember {
         mutableStateOf<ImageBitmap?>(null)
     }
@@ -469,8 +470,8 @@ fun PlayerScreen(
                             onSyncClick = {
                                 viewModel.onEvent(PlayerScreenEvent.OnSyncClick)
                             },
-                            onDeleteClick = {
-                                viewModel.onEvent(PlayerScreenEvent.OnDeleteClick)
+                            onDeleteClick = { track: Track ->
+                                viewModel.onEvent(PlayerScreenEvent.OnDeleteClick(track))
                             }
 
                         )
@@ -571,9 +572,9 @@ fun PlayerScreen(
                                     navController.navigateUp()
                                 },
                                 replaceSearchWithFilter = replaceSearchWithFilter,
-                                onDeleteClick = onDeleteClick?.let { deleteCallback ->
-                                    { track -> deleteCallback() }
-                                } ?: {}
+                                onDeleteClick = {
+                                    viewModel.onEvent(PlayerScreenEvent.OnDeleteClick(it))
+                                }
                             )
                         }
                     }
@@ -928,7 +929,9 @@ fun PlayerScreen(
                                         )
                                     )
                                 },
-                                onDeleteClick = onDeleteClick,
+                                onDeleteClick = {
+                                    viewModel.onEvent(PlayerScreenEvent.OnDeleteClick(it))
+                                },
                                 modifier = Modifier
                                     .align(alignment = Alignment.CenterHorizontally)
                                     .fillMaxWidth()
@@ -1025,6 +1028,42 @@ fun PlayerScreen(
                 )
             }
         }
+
+        trackToDelete.value?.let { track ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { trackToDelete.value = null },
+                title = {
+                    Text(text = stringResource(R.string.confirm_delete_title))
+                },
+                text = {
+                    Text(
+                        text = stringResource(
+                            R.string.confirm_delete_message,
+                            track.title ?: track.data
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            viewModel.onEvent(PlayerScreenEvent.OnDeleteClick(track))
+                            trackToDelete.value = null
+                        }
+                    ) {
+                        Text(text = stringResource(R.string.delete))
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = { trackToDelete.value = null }
+                    ) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -1064,7 +1103,7 @@ fun MainPlayerScreen(
     onGridPlaylistsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSyncClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: (Track) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -1413,9 +1452,7 @@ fun MainPlayerScreen(
                         onViewTrackInfoClick = onViewTrackInfoClick,
                         onGoToAlbumClick = onGoToAlbumClick,
                         onGoToArtistClick = onGoToArtistClick,
-                        onDeleteClick = onDeleteClick?.let { deleteCallback ->
-                            { track -> deleteCallback() }
-                        }?: {},
+                        onDeleteClick = onDeleteClick,
                         onLongClick = {
                             isInSelectionMode = true
                             selectedTracks.add(it)

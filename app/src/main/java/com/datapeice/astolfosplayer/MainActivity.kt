@@ -330,10 +330,7 @@ class MainActivity : ComponentActivity() {
                                     onBackClick = { // <-- ДОБАВЛЕНО
                                         onBackPressedDispatcher.onBackPressed()
                                     },
-                                    modifier = Modifier.fillMaxSize(),
-                                    onDeleteClick = {
-                                        viewModel.onEvent(PlayerScreenEvent.OnDeleteClick)
-                                    }
+                                    modifier = Modifier.fillMaxSize()
 
                                 )
                             }

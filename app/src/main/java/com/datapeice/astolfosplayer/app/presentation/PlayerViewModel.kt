@@ -1088,9 +1088,7 @@ class PlayerViewModel(
                 }
             }
             is OnDeleteClick -> {
-                playbackState.value.currentTrack?.let { track ->
-                    deleteTrack(track, trackApi)
-                }
+                deleteTrack(event.track, trackApi)
             }
             OnSettingsClick -> {
                 _settingsSheetState.update {

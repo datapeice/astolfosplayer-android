@@ -58,7 +58,7 @@ sealed interface PlayerScreenEvent {
 
     data object OnSettingsClick: PlayerScreenEvent
     data object OnSyncClick: PlayerScreenEvent // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
-    data object OnDeleteClick: PlayerScreenEvent // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
+    data class OnDeleteClick(val track: Track) : PlayerScreenEvent
 
     data object OnCloseSettingsClick: PlayerScreenEvent
     data object OnScanFoldersClick: PlayerScreenEvent
