@@ -1,7 +1,7 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/icon.png" width="200px" />
 
-  # Astolfos Player
+  # Astolfo's Player
 
   ### Music player for Android designed with Material You
   
