@@ -748,7 +748,7 @@ fun PlayerScreen(
                         derivedStateOf { playbackState.isPlayerExpanded }
                     }
                     val syncState by viewModel.syncState.collectAsState()
-
+                    val deletionState by viewModel.deletionState.collectAsState()
                     if (!isPlayerExpanded) {
                         ScrollToTopAndLocateButtons(
                             showScrollToTopButton = showScrollToTopButton,
@@ -757,7 +757,77 @@ fun PlayerScreen(
                             onLocateClick = onLocateClick,
                             modifier = Modifier.align(Alignment.End)
                         )
+                        AnimatedVisibility(
+                            visible = deletionState.isSyncing,
+                            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                        ) {
+                            Column(
+                                modifier = if (!(currentTrack != null)) Modifier.safeDrawingPadding() else Modifier
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .background(
+                                            color = colorScheme.surfaceContainerHigh,
+                                            shape = MaterialTheme.shapes.small
+                                        )
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clip(MaterialTheme.shapes.small)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(fraction = deletionState.progress)
+                                                .fillMaxHeight()
+                                                .background(
+                                                    // ----> ИЗМЕНЕНИЕ №1 <----
+                                                    // Меняем error на primary для соответствия стилю
+                                                    color = colorScheme.primary.copy(alpha = 0.2f),
+                                                    shape = MaterialTheme.shapes.small
+                                                )
+                                        )
+                                    }
 
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource(R.string.deleting),
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                color = colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = deletionState.message,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Text(
+                                            text = "${(deletionState.progress * 100).toInt()}%",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            // ----> ИЗМЕНЕНИЕ №2 <----
+                                            // Меняем error на primary
+                                            color = colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         // Прогресс-бар синхронизации
                         AnimatedVisibility(
                             visible = syncState.isSyncing,

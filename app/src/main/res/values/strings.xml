@@ -409,6 +409,12 @@
     <string name="confirm_delete_message">Yes</string>
     <string name="no_permission">No permission</string>
     <string name="track_deleted_local_only">Track deleted locally\n</string>
+    <string name="deleting">Deleting...</string>
+    <string name="calculating_hash">Calculating hash...</string>
+    <string name="deleting_from_server">Deleting from server...</string>
+    <string name="cleaning_cache">Cleaning chache</string>
+    <string name="updating_track_list">Updating track list</string>
+    <string name="deleting_track">Deleting track: %s</string>
 
 
 </resources>

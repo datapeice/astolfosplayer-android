@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="fastlane/metadata/android/en-US/images/icon-fit.png" width="200px" />
+  <img src="fastlane/metadata/android/en-US/images/icon.png" width="200px" />
 
   # Astolfos Player
 

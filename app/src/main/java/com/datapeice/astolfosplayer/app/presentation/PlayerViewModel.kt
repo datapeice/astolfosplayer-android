@@ -65,6 +65,7 @@ import kotlinx.coroutines.withContext
 import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
 import com.datapeice.astolfosplayer.core.api.TrackApi
 import com.datapeice.astolfosplayer.core.utils.FileHasher
+import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 import kotlin.compareTo
 import kotlin.toString
@@ -98,6 +99,8 @@ class PlayerViewModel(
     var player: Player? = null
     private val _syncState = MutableStateFlow(SyncState())
     val syncState = _syncState.asStateFlow()
+    private val _deletionState = MutableStateFlow(SyncState())
+    val deletionState = _deletionState.asStateFlow()
     private val _settingsSheetState = MutableStateFlow(
         SettingsSheetState(
             settings = settings,
@@ -1421,11 +1424,23 @@ class PlayerViewModel(
     }
     fun deleteTrack(track: Track, trackApi: TrackApi) {
         viewModelScope.launch {
+            // Показываем начало удаления
+            _deletionState.value = SyncState(
+                isSyncing = true, // используем isSyncing для isDeleting
+                message = context.getString(R.string.deleting_track, track.title ?: "Unknown"),
+                progress = 0f
+            )
+
             try {
                 var deleted = false
                 var fileHash: String? = null
 
-                // 0. Вычисляем хеш файла ДО его удаления
+                // Шаг 1: Вычисляем хеш (10%)
+                _deletionState.value = _deletionState.value.copy(
+                    message = context.getString(R.string.calculating_hash),
+                    progress = 0.1f
+                )
+
                 try {
                     fileHash = context.contentResolver.openInputStream(track.uri)?.use { inputStream ->
                         FileHasher.calculateSha256(inputStream)
@@ -1435,7 +1450,12 @@ class PlayerViewModel(
                     Log.w("DeleteTrack", "Failed to calculate file hash: ${e.message}", e)
                 }
 
-                // 1. Получить URI папки из настроек
+                // Шаг 2: Удаление локального файла (40%)
+                _deletionState.value = _deletionState.value.copy(
+                    message = context.getString(R.string.track_deleted_local_only),
+                    progress = 0.3f
+                )
+
                 val folderUriString = settings.extraScanFolders.value.firstOrNull()
                 if (!folderUriString.isNullOrBlank()) {
                     val folderUri = Uri.parse(folderUriString)
@@ -1452,7 +1472,6 @@ class PlayerViewModel(
                     }
                 }
 
-                // 2. Если не удалось через SAF, попробовать через ContentResolver
                 if (!deleted) {
                     val rowsDeleted = context.contentResolver.delete(
                         track.uri,
@@ -1466,7 +1485,6 @@ class PlayerViewModel(
                     }
                 }
 
-                // 3. Последняя попытка - прямое удаление
                 if (!deleted) {
                     val file = File(track.data)
                     if (file.exists() && file.delete()) {
@@ -1479,7 +1497,14 @@ class PlayerViewModel(
                     throw Exception("Не удалось удалить файл")
                 }
 
-                // 4. Удалить из MediaStore
+                _deletionState.value = _deletionState.value.copy(progress = 0.5f)
+
+                // Шаг 3: Удаление из MediaStore (60%)
+                _deletionState.value = _deletionState.value.copy(
+                    message = context.getString(R.string.updating_library),
+                    progress = 0.6f
+                )
+
                 try {
                     context.contentResolver.delete(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -1490,9 +1515,14 @@ class PlayerViewModel(
                     Log.w("DeleteTrack", "Не удалось удалить из MediaStore", e)
                 }
 
-                // 5. Удалить с сервера (если есть id)
+                // Шаг 4: Удаление с сервера (80%)
                 var serverDeleted = false
                 if (!track.id.isNullOrBlank()) {
+                    _deletionState.value = _deletionState.value.copy(
+                        message = context.getString(R.string.deleting_from_server),
+                        progress = 0.7f
+                    )
+
                     try {
                         withContext(Dispatchers.IO) {
                             Log.d("DeleteTrack", "Отправка DELETE запроса для ID: ${track.id}")
@@ -1507,7 +1537,14 @@ class PlayerViewModel(
                     Log.w("DeleteTrack", "⚠️ У трека ${track.title} нет серверного ID. Пропускаем удаление с сервера.")
                 }
 
-                // 6. Удалить маппинг hash -> trackId из хранилища
+                _deletionState.value = _deletionState.value.copy(progress = 0.85f)
+
+                // Шаг 5: Удаление маппинга из хранилища (90%)
+                _deletionState.value = _deletionState.value.copy(
+                    message = context.getString(R.string.cleaning_cache),
+                    progress = 0.9f
+                )
+
                 if (fileHash != null) {
                     try {
                         trackIdStorage.removeTrackId(fileHash)
@@ -1517,10 +1554,14 @@ class PlayerViewModel(
                     }
                 }
 
-                // 7. Обновить список треков
+                // Шаг 6: Обновление UI (95%)
+                _deletionState.value = _deletionState.value.copy(
+                    message = context.getString(R.string.updating_track_list),
+                    progress = 0.95f
+                )
+
                 _trackList.value = _trackList.value.filter { it.uri != track.uri }
 
-                // 8. Переключиться на следующий трек если удалён текущий
                 if (playbackState.value.currentTrack?.uri == track.uri) {
                     player?.let { player ->
                         if (player.hasNextMediaItem()) {
@@ -1533,31 +1574,40 @@ class PlayerViewModel(
                     }
                 }
 
-                // 9. Показать сообщение об успехе
-                val successMessage = when {
-                    serverDeleted -> R.string.track_deleted // "Трек удален локально и с сервера"
-                    !track.id.isNullOrBlank() -> R.string.track_deleted_local_only // "Трек удален локально (ошибка удаления с сервера)"
-                    else -> R.string.track_deleted // "Трек удален"
-                }
-
-                SnackbarController.sendEvent(
-                    SnackbarEvent(message = successMessage)
+                // Завершение (100%)
+                _deletionState.value = _deletionState.value.copy(
+                    message = when {
+                        serverDeleted -> context.getString(R.string.track_deleted)
+                        !track.id.isNullOrBlank() -> context.getString(R.string.track_deleted_local_only)
+                        else -> context.getString(R.string.track_deleted)
+                    },
+                    progress = 1f
                 )
+
+                delay(2000)
+
+
 
             } catch (e: Exception) {
                 Log.e("DeleteTrack", "Ошибка удаления: ${e.message}", e)
-                SnackbarController.sendEvent(
-                    SnackbarEvent(
-                        message = when (e) {
+
+                _deletionState.value = _deletionState.value.copy(
+                    message = context.getString(
+                        when (e) {
                             is SecurityException -> R.string.no_permission
                             else -> R.string.delete_error
                         }
-                    )
+                    ),
+                    progress = 0f
                 )
+
+                delay(3000)
+
+            } finally {
+                _deletionState.value = SyncState(isSyncing = false)
             }
         }
     }
-
 
     // Вспомогательная функция для поиска файла в дереве
     private fun findFileInTree(folder: DocumentFile, fileName: String): DocumentFile? {
@@ -1820,3 +1870,4 @@ class PlayerViewModel(
 
 
 }
+// В вашем ViewModel добавьте:
