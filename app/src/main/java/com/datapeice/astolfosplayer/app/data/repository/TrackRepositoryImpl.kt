@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.compose.ui.util.fastForEach
 import androidx.core.database.getIntOrNull
 import androidx.core.database.getLongOrNull
@@ -13,13 +14,16 @@ import androidx.core.database.getStringOrNull
 import androidx.media3.common.MediaItem
 import com.datapeice.astolfosplayer.app.domain.track.Track
 import com.datapeice.astolfosplayer.core.data.Settings
+import com.datapeice.astolfosplayer.core.utils.FileHasher
 import java.util.concurrent.TimeUnit
 
 class TrackRepositoryImpl(
     private val context: Context,
     private val settings: Settings,
+    private val trackIdStorage: TrackIdStorage,
 ) : TrackRepository {
     override fun getTracks(): List<Track> {
+
         val trackIdToGenre = getTrackIdToGenreMap()
 
         val collection =
@@ -149,8 +153,19 @@ class TrackRepositoryImpl(
                     albumId
                 )
                 val mediaItem = MediaItem.fromUri(uri)
+                val fileHash = try {
+                    context.contentResolver.openInputStream(uri)?.use {
+                        FileHasher.calculateSha256(it)
+                    }
+                } catch (e: Exception) {
+                    Log.w("TrackRepository", "Failed to calculate hash for $data", e)
+                    null
+                }
 
+                val serverTrackId = fileHash?.let { trackIdStorage.getTrackId(it) }
                 tracks += Track(
+                    id = serverTrackId,
+
                     uri = uri,
                     mediaItem = mediaItem,
                     coverArtUri = albumArtUri,

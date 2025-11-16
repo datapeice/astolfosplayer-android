@@ -16,6 +16,7 @@ import com.datapeice.astolfosplayer.app.data.repository.PlaylistJson
 import com.datapeice.astolfosplayer.app.data.repository.PlaylistRepository
 import com.datapeice.astolfosplayer.app.data.repository.RealmLyricsRepository
 import com.datapeice.astolfosplayer.app.data.repository.RealmPlaylistRepository
+import com.datapeice.astolfosplayer.app.data.repository.TrackIdStorage
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepository
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepositoryImpl
 import com.datapeice.astolfosplayer.app.presentation.PlayerViewModel
@@ -35,10 +36,14 @@ import org.koin.dsl.module
 
 val playerModule = module {
 
+    // ====> ДОБАВЬТЕ ЭТУ СТРОКУ <====
+    single { TrackIdStorage(androidContext()) }
+
     single<TrackRepository> {
         TrackRepositoryImpl(
             context = androidContext(),
-            settings = get()
+            settings = get(),
+            trackIdStorage = get()
         )
     }
 
@@ -47,12 +52,14 @@ val playerModule = module {
             context = androidContext()
         )
     }
+
     single<TrackApi> {
         KtorTrackApi(
             httpClient = get(),
             settings = get()
         )
     }
+
     single<HttpClient> {
         HttpClient(CIO) {
             install(ContentNegotiation) {

@@ -21,6 +21,7 @@ import com.datapeice.astolfosplayer.app.data.remote.lyrics.LyricsProvider
 import com.datapeice.astolfosplayer.app.data.remote.metadata.MetadataProvider
 import com.datapeice.astolfosplayer.app.data.repository.LyricsRepository
 import com.datapeice.astolfosplayer.app.data.repository.PlaylistRepository
+import com.datapeice.astolfosplayer.app.data.repository.TrackIdStorage
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepository
 import com.datapeice.astolfosplayer.app.domain.lyrics.Lyrics
 import com.datapeice.astolfosplayer.app.domain.lyrics.toSyncedLyrics
@@ -63,7 +64,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
 import com.datapeice.astolfosplayer.core.api.TrackApi
+import com.datapeice.astolfosplayer.core.utils.FileHasher
 import java.io.File
+import kotlin.compareTo
 import kotlin.toString
 
 data class SyncState(
@@ -88,7 +91,10 @@ class PlayerViewModel(
     private val context: Context,
     private val trackApi: TrackApi, // <-- добавьте это
 
+
 ) : ViewModel() {
+    private val trackIdStorage = TrackIdStorage(context)
+
     var player: Player? = null
     private val _syncState = MutableStateFlow(SyncState())
     val syncState = _syncState.asStateFlow()
@@ -1312,7 +1318,25 @@ class PlayerViewModel(
             else -> {}
         }
     }
+    fun updateTrackId(fileHash: String, trackId: String) {
+        viewModelScope.launch {
+            // Сохраняем в постоянное хранилище
+            trackIdStorage.saveTrackId(fileHash, trackId)
 
+            // Обновляем текущий список треков в памяти
+            _trackList.value = _trackList.value.map { track ->
+                val hash = try {
+                    context.contentResolver.openInputStream(track.uri)?.use {
+                        FileHasher.calculateSha256(it)
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+                if (hash == fileHash) track.copy(id = trackId) else track
+            }
+            Log.d("UpdateTrackId", "Track with hash $fileHash updated with ID: $trackId")
+        }
+    }
 
     private fun onSyncClick() {
         if (_syncState.value.isSyncing) return
@@ -1355,10 +1379,15 @@ class PlayerViewModel(
                             }
                         },
                         onComplete = {
-                            // Обновляем список треков после синхронизации
                             val allTracks = trackRepository.getTracks()
                             val filteredTracks = allTracks.filterBySelectedFolder(folderUriString)
                             _trackList.value = filteredTracks.sortedBy(_trackSort.value, _trackSortOrder.value)
+                        },
+                        onTrackIdReceived = { fileHash, trackId ->
+                            launch(Dispatchers.Main) {
+                                updateTrackId(fileHash, trackId)
+                                Log.d("SyncApi", "Received trackId $trackId for hash $fileHash")
+                            }
                         }
                     )
                 }
@@ -1373,6 +1402,7 @@ class PlayerViewModel(
             }
         }
     }
+
 
 
 
@@ -1392,29 +1422,105 @@ class PlayerViewModel(
     fun deleteTrack(track: Track, trackApi: TrackApi) {
         viewModelScope.launch {
             try {
-//                // 1. Удалить с сервера
-//                trackApi.deleteTrack(track.uri.toString())
-//                Log.d("DeleteTrack", "Удалено с сервера: ${track.title}")
+                var deleted = false
+                var fileHash: String? = null
 
-                // 2. Удалить локальный файл
-                track.uri.path?.let { path ->
-                    val file = File(path)
-                    if (file.exists()) {
-                        file.delete()
+                // 0. Вычисляем хеш файла ДО его удаления
+                try {
+                    fileHash = context.contentResolver.openInputStream(track.uri)?.use { inputStream ->
+                        FileHasher.calculateSha256(inputStream)
+                    }
+                    Log.d("DeleteTrack", "File hash calculated: $fileHash")
+                } catch (e: Exception) {
+                    Log.w("DeleteTrack", "Failed to calculate file hash: ${e.message}", e)
+                }
+
+                // 1. Получить URI папки из настроек
+                val folderUriString = settings.extraScanFolders.value.firstOrNull()
+                if (!folderUriString.isNullOrBlank()) {
+                    val folderUri = Uri.parse(folderUriString)
+                    val musicFolder = DocumentFile.fromTreeUri(context, folderUri)
+
+                    if (musicFolder != null && musicFolder.exists()) {
+                        val fileName = track.data.substringAfterLast('/')
+                        val fileToDelete = findFileInTree(musicFolder, fileName)
+
+                        if (fileToDelete != null && fileToDelete.delete()) {
+                            deleted = true
+                            Log.d("DeleteTrack", "Удалено через SAF: ${track.title}")
+                        }
                     }
                 }
 
-                // 3. Удалить из MediaStore
-                context.contentResolver.delete(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    "${MediaStore.Audio.Media.DATA} = ?",
-                    arrayOf(track.data)
-                )
+                // 2. Если не удалось через SAF, попробовать через ContentResolver
+                if (!deleted) {
+                    val rowsDeleted = context.contentResolver.delete(
+                        track.uri,
+                        null,
+                        null
+                    )
 
-                // 4. Обновить список треков
+                    if (rowsDeleted > 0) {
+                        deleted = true
+                        Log.d("DeleteTrack", "Удалено через ContentResolver: ${track.title}")
+                    }
+                }
+
+                // 3. Последняя попытка - прямое удаление
+                if (!deleted) {
+                    val file = File(track.data)
+                    if (file.exists() && file.delete()) {
+                        deleted = true
+                        Log.d("DeleteTrack", "Удалено через File: ${track.title}")
+                    }
+                }
+
+                if (!deleted) {
+                    throw Exception("Не удалось удалить файл")
+                }
+
+                // 4. Удалить из MediaStore
+                try {
+                    context.contentResolver.delete(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        "${MediaStore.Audio.Media.DATA} = ?",
+                        arrayOf(track.data)
+                    )
+                } catch (e: Exception) {
+                    Log.w("DeleteTrack", "Не удалось удалить из MediaStore", e)
+                }
+
+                // 5. Удалить с сервера (если есть id)
+                var serverDeleted = false
+                if (!track.id.isNullOrBlank()) {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            Log.d("DeleteTrack", "Отправка DELETE запроса для ID: ${track.id}")
+                            trackApi.deleteTrack(track.id)
+                        }
+                        serverDeleted = true
+                        Log.d("DeleteTrack", "✅ Удалено с сервера: ${track.title} (ID: ${track.id})")
+                    } catch (e: Exception) {
+                        Log.e("DeleteTrack", "❌ Ошибка удаления с сервера: ${e.message}", e)
+                    }
+                } else {
+                    Log.w("DeleteTrack", "⚠️ У трека ${track.title} нет серверного ID. Пропускаем удаление с сервера.")
+                }
+
+                // 6. Удалить маппинг hash -> trackId из хранилища
+                if (fileHash != null) {
+                    try {
+                        trackIdStorage.removeTrackId(fileHash)
+                        Log.d("DeleteTrack", "🗑️ Удален маппинг из хранилища: hash=$fileHash")
+                    } catch (e: Exception) {
+                        Log.w("DeleteTrack", "Не удалось удалить маппинг из хранилища", e)
+                    }
+                }
+
+                // 7. Обновить список треков
                 _trackList.value = _trackList.value.filter { it.uri != track.uri }
 
-                // 5. Переключиться на следующий трек если удалён текущий
+                // 8. Переключиться на следующий трек если удалён текущий
                 if (playbackState.value.currentTrack?.uri == track.uri) {
                     player?.let { player ->
                         if (player.hasNextMediaItem()) {
@@ -1427,18 +1533,23 @@ class PlayerViewModel(
                     }
                 }
 
-                // 6. Показать сообщение об успехе
+                // 9. Показать сообщение об успехе
+                val successMessage = when {
+                    serverDeleted -> R.string.track_deleted // "Трек удален локально и с сервера"
+                    !track.id.isNullOrBlank() -> R.string.track_deleted_local_only // "Трек удален локально (ошибка удаления с сервера)"
+                    else -> R.string.track_deleted // "Трек удален"
+                }
+
                 SnackbarController.sendEvent(
-                    SnackbarEvent(message = R.string.track_deleted)
+                    SnackbarEvent(message = successMessage)
                 )
 
             } catch (e: Exception) {
-                Log.e("DeleteTrack", "Ошибка удаления", e)
+                Log.e("DeleteTrack", "Ошибка удаления: ${e.message}", e)
                 SnackbarController.sendEvent(
                     SnackbarEvent(
                         message = when (e) {
-                            is java.net.UnknownHostException -> R.string.no_internet
-                            is java.net.SocketTimeoutException -> R.string.request_timeout
+                            is SecurityException -> R.string.no_permission
                             else -> R.string.delete_error
                         }
                     )
@@ -1446,6 +1557,22 @@ class PlayerViewModel(
             }
         }
     }
+
+
+    // Вспомогательная функция для поиска файла в дереве
+    private fun findFileInTree(folder: DocumentFile, fileName: String): DocumentFile? {
+        folder.listFiles().forEach { file ->
+            if (file.isFile && file.name == fileName) {
+                return file
+            }
+            if (file.isDirectory) {
+                findFileInTree(file, fileName)?.let { return it }
+            }
+        }
+        return null
+    }
+
+
 
 
 

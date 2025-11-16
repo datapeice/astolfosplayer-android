@@ -42,7 +42,8 @@ data class TrackMetadata(
     val duration: Int? = null,
     @SerialName("file_size") val fileSize: Long,
     @SerialName("mime_type") val mimeType: String? = null,
-    @SerialName("user_id") val userId: String? = null
+    @SerialName("uploaded_at") val uploadedAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
 )
 
 // --- Модели для синхронизации ---
