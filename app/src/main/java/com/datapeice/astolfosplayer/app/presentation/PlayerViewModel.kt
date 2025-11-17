@@ -66,10 +66,10 @@ import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
 import com.datapeice.astolfosplayer.core.api.TrackApi
 import com.datapeice.astolfosplayer.core.utils.FileHasher
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.io.IOException
 import java.io.File
 import kotlin.compareTo
 import kotlin.toString
-
 data class SyncState(
     val isSyncing: Boolean = false,
     val message: String = "",
@@ -262,6 +262,7 @@ class PlayerViewModel(
     private val _pendingTrackUris = Channel<Uri>()
 
     init {
+
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 val allTracks = trackRepository.getTracks()
@@ -1424,36 +1425,68 @@ class PlayerViewModel(
     }
     fun deleteTrack(track: Track, trackApi: TrackApi) {
         viewModelScope.launch {
-            // Показываем начало удаления
             _deletionState.value = SyncState(
-                isSyncing = true, // используем isSyncing для isDeleting
+                isSyncing = true,
                 message = context.getString(R.string.deleting_track, track.title ?: "Unknown"),
                 progress = 0f
             )
 
             try {
                 var deleted = false
-                var fileHash: String? = null
+                var serverDeleted = false
 
-                // Шаг 1: Вычисляем хеш (10%)
-                _deletionState.value = _deletionState.value.copy(
-                    message = context.getString(R.string.calculating_hash),
-                    progress = 0.1f
-                )
+                // Шаг 1: Вычисление хеша файла
+                val fileHash = try {
+                    _deletionState.value = _deletionState.value.copy(
+                        message = context.getString(R.string.calculating_hash),
+                        progress = 0.1f
+                    )
 
-                try {
-                    fileHash = context.contentResolver.openInputStream(track.uri)?.use { inputStream ->
-                        FileHasher.calculateSha256(inputStream)
+                    context.contentResolver.openInputStream(track.uri)?.use {
+                        FileHasher.calculateSha256(it)
                     }
-                    Log.d("DeleteTrack", "File hash calculated: $fileHash")
                 } catch (e: Exception) {
-                    Log.w("DeleteTrack", "Failed to calculate file hash: ${e.message}", e)
+                    Log.w("DeleteTrack", "Failed to calculate hash for ${track.uri}", e)
+                    null
                 }
 
-                // Шаг 2: Удаление локального файла (40%)
+                // Шаг 2: Получение ID из хранилища
+                val serverTrackId = fileHash?.let {
+                    trackIdStorage.getTrackId(it)
+                } ?: track.id
+
+                Log.d("DeleteTrack", "File hash calculated: $fileHash")
+
+                if (!serverTrackId.isNullOrBlank()) {
+                    _deletionState.value = _deletionState.value.copy(
+                        message = context.getString(R.string.deleting_from_server),
+                        progress = 0.3f
+                    )
+
+                    try {
+                        trackApi.deleteTrack(serverTrackId)
+                        serverDeleted = true
+                        Log.d("DeleteTrack", "Deleted from server: ${track.title}")
+                    } catch (e: Exception) {
+                        // Если ваш TrackApi возвращает исключение с кодом ошибки
+                        val errorCode = (e as? IOException)?.message?.toIntOrNull()
+
+                        if (errorCode == 404) {
+                            Log.w("DeleteTrack", "Track not found on server (404), deleting locally")
+                            serverDeleted = false
+                        } else {
+                            Log.w("DeleteTrack", "Server delete failed for ${track.title}", e)
+                        }
+                    }
+                } else {
+                    Log.w("DeleteTrack", "⚠️ У трека ${track.title} нет серверного ID. Пропускаем удаление с сервера.")
+                }
+
+
+                // Шаг 4: Удаление локального файла через SAF
                 _deletionState.value = _deletionState.value.copy(
-                    message = context.getString(R.string.track_deleted_local_only),
-                    progress = 0.3f
+                    message = context.getString(R.string.deleting_track, track.title ?: "Unknown"),
+                    progress = 0.6f
                 )
 
                 val folderUriString = settings.extraScanFolders.value.firstOrNull()
@@ -1465,96 +1498,37 @@ class PlayerViewModel(
                         val fileName = track.data.substringAfterLast('/')
                         val fileToDelete = findFileInTree(musicFolder, fileName)
 
-                        if (fileToDelete != null && fileToDelete.delete()) {
-                            deleted = true
-                            Log.d("DeleteTrack", "Удалено через SAF: ${track.title}")
+                        if (fileToDelete != null) {
+                            try {
+                                deleted = fileToDelete.delete()
+                                if (deleted) {
+                                    Log.d("DeleteTrack", "Удалено через SAF: ${track.title}")
+                                }
+                            } catch (e: Exception) {
+                                Log.w("DeleteTrack", "SAF delete failed: ${e.message}")
+                            }
                         }
                     }
                 }
 
                 if (!deleted) {
-                    val rowsDeleted = context.contentResolver.delete(
-                        track.uri,
-                        null,
-                        null
-                    )
-
-                    if (rowsDeleted > 0) {
-                        deleted = true
-                        Log.d("DeleteTrack", "Удалено через ContentResolver: ${track.title}")
-                    }
+                    val rowsDeleted = context.contentResolver.delete(track.uri, null, null)
+                    deleted = rowsDeleted > 0
+                    Log.d("DeleteTrack", "MediaStore delete: $rowsDeleted rows")
                 }
 
-                if (!deleted) {
-                    val file = File(track.data)
-                    if (file.exists() && file.delete()) {
-                        deleted = true
-                        Log.d("DeleteTrack", "Удалено через File: ${track.title}")
-                    }
-                }
-
-                if (!deleted) {
-                    throw Exception("Не удалось удалить файл")
-                }
-
-                _deletionState.value = _deletionState.value.copy(progress = 0.5f)
-
-                // Шаг 3: Удаление из MediaStore (60%)
-                _deletionState.value = _deletionState.value.copy(
-                    message = context.getString(R.string.updating_library),
-                    progress = 0.6f
-                )
-
-                try {
-                    context.contentResolver.delete(
-                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                        "${MediaStore.Audio.Media.DATA} = ?",
-                        arrayOf(track.data)
-                    )
-                } catch (e: Exception) {
-                    Log.w("DeleteTrack", "Не удалось удалить из MediaStore", e)
-                }
-
-                // Шаг 4: Удаление с сервера (80%)
-                var serverDeleted = false
-                if (!track.id.isNullOrBlank()) {
-                    _deletionState.value = _deletionState.value.copy(
-                        message = context.getString(R.string.deleting_from_server),
-                        progress = 0.7f
-                    )
-
-                    try {
-                        withContext(Dispatchers.IO) {
-                            Log.d("DeleteTrack", "Отправка DELETE запроса для ID: ${track.id}")
-                            trackApi.deleteTrack(track.id)
-                        }
-                        serverDeleted = true
-                        Log.d("DeleteTrack", "✅ Удалено с сервера: ${track.title} (ID: ${track.id})")
-                    } catch (e: Exception) {
-                        Log.e("DeleteTrack", "❌ Ошибка удаления с сервера: ${e.message}", e)
-                    }
-                } else {
-                    Log.w("DeleteTrack", "⚠️ У трека ${track.title} нет серверного ID. Пропускаем удаление с сервера.")
-                }
-
-                _deletionState.value = _deletionState.value.copy(progress = 0.85f)
-
-                // Шаг 5: Удаление маппинга из хранилища (90%)
+                // Шаг 5: Удаление из хранилища ID
                 _deletionState.value = _deletionState.value.copy(
                     message = context.getString(R.string.cleaning_cache),
-                    progress = 0.9f
+                    progress = 0.8f
                 )
 
-                if (fileHash != null) {
-                    try {
-                        trackIdStorage.removeTrackId(fileHash)
-                        Log.d("DeleteTrack", "🗑️ Удален маппинг из хранилища: hash=$fileHash")
-                    } catch (e: Exception) {
-                        Log.w("DeleteTrack", "Не удалось удалить маппинг из хранилища", e)
-                    }
+                fileHash?.let { hash ->
+                    trackIdStorage.removeTrackId(hash)
+                    Log.d("DeleteTrack", "🗑️ Удален маппинг из хранилища: hash=$hash")
                 }
 
-                // Шаг 6: Обновление UI (95%)
+                // Шаг 6: Обновление UI
                 _deletionState.value = _deletionState.value.copy(
                     message = context.getString(R.string.updating_track_list),
                     progress = 0.95f
@@ -1562,31 +1536,38 @@ class PlayerViewModel(
 
                 _trackList.value = _trackList.value.filter { it.uri != track.uri }
 
+                // Проверка на пустую папку
+                val selectedFolder = settings.extraScanFolders.value.firstOrNull()
+                val remainingTracksInFolder = _trackList.value.filterBySelectedFolder(selectedFolder)
+
+                if (remainingTracksInFolder.isEmpty() && _selectedPlaylist.value != null) {
+                    _selectedPlaylist.value = null
+                }
+
                 if (playbackState.value.currentTrack?.uri == track.uri) {
                     player?.let { player ->
                         if (player.hasNextMediaItem()) {
                             player.seekToNextMediaItem()
-                        } else if (player.hasPreviousMediaItem()) {
-                            player.seekToPreviousMediaItem()
                         } else {
-                            onEvent(OnResetPlayback)
+                            player.stop()
+                            player.clearMediaItems()
+                            _playbackState.update {
+                                PlaybackState()
+                            }
                         }
                     }
                 }
 
-                // Завершение (100%)
+                // Шаг 7: Финальное сообщение
                 _deletionState.value = _deletionState.value.copy(
-                    message = when {
-                        serverDeleted -> context.getString(R.string.track_deleted)
-                        !track.id.isNullOrBlank() -> context.getString(R.string.track_deleted_local_only)
-                        else -> context.getString(R.string.track_deleted)
-                    },
+                    message = context.getString(
+                        if (serverDeleted) R.string.track_deleted
+                        else R.string.track_deleted_local_only
+                    ),
                     progress = 1f
                 )
 
                 delay(2000)
-
-
 
             } catch (e: Exception) {
                 Log.e("DeleteTrack", "Ошибка удаления: ${e.message}", e)

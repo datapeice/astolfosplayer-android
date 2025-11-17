@@ -153,18 +153,9 @@ class TrackRepositoryImpl(
                     albumId
                 )
                 val mediaItem = MediaItem.fromUri(uri)
-                val fileHash = try {
-                    context.contentResolver.openInputStream(uri)?.use {
-                        FileHasher.calculateSha256(it)
-                    }
-                } catch (e: Exception) {
-                    Log.w("TrackRepository", "Failed to calculate hash for $data", e)
-                    null
-                }
 
-                val serverTrackId = fileHash?.let { trackIdStorage.getTrackId(it) }
                 tracks += Track(
-                    id = serverTrackId,
+                    id = null,
 
                     uri = uri,
                     mediaItem = mediaItem,
