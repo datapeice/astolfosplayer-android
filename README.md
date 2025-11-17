@@ -28,7 +28,7 @@
 - Enhance your listening experience with synchronized lyrics from [LRCLIB](https://lrclib.net/)
 - Manually update track details or fetch accurate info from [MusicBrainz](https://musicbrainz.org/)
 - Designed with [Material You](https://m3.material.io/) and supports dynamic color palettes
-- Sync your library with the Astolfo's server
+- Sync your library with the [Astolfo's server](https://github.com/datapeice/astolfosplayer-backend)
 ## Download
 Latest stable version is available on [GitHub releases](https://github.com/datapeice/astolfosplayer-android/releases/latest)
 
