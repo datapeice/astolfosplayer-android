@@ -28,12 +28,12 @@
 - Enhance your listening experience with synchronized lyrics from [LRCLIB](https://lrclib.net/)
 - Manually update track details or fetch accurate info from [MusicBrainz](https://musicbrainz.org/)
 - Designed with [Material You](https://m3.material.io/) and supports dynamic color palettes
-
+- Sync your library with the Astolfo's server
 ## Download
 Latest stable version is available on [GitHub releases](https://github.com/datapeice/astolfosplayer-android/releases/latest)
 
 ## Support
-If you enjoy using Astolfos Player, consider:
+If you enjoy using Astolfo's Player, consider:
 - ⭐ Starring the repository on GitHub
 - 🐛 Reporting bugs and suggesting features via [Issues](https://github.com/datapeice/astolfosplayer-android/issues)
 - 🤝 Contributing to the project
@@ -58,6 +58,8 @@ If you enjoy using Astolfos Player, consider:
 That's it! The app should now be running. 
 
 ## Credits
+Forked from [Lotus](https://github.com/dn0ne/lotus)
+
 Some UI elements are inspired by [Vanilla](https://github.com/vanilla-music/vanilla)
 
 Lyrics UI is inspired by [Beautiful Lyrics](https://github.com/surfbryce/beautiful-lyrics)
@@ -71,4 +73,4 @@ Lyrics UI is inspired by [Beautiful Lyrics](https://github.com/surfbryce/beautif
 [jaudiotagger](https://bitbucket.org/ijabz/jaudiotagger/src/master/)
 
 ## License
-Astolfos Player is licensed under [GPLv3](LICENSE.md)
+Astolfo's Player is licensed under [GPLv3](LICENSE.md)

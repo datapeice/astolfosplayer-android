@@ -99,6 +99,14 @@ fun AboutPage(
                     }
                 ),
                 SettingsItem(
+                    title = context.resources.getString(R.string.fork_repo),
+                    supportingText = context.resources.getString(R.string.fork_repo_explain),
+                    icon = repoIcon,
+                    onClick = {
+                        uriHandler.openUri(context.resources.getString(R.string.fork_repo_url))
+                    }
+                ),
+                SettingsItem(
                     title = context.resources.getString(R.string.feedback),
                     supportingText = context.resources.getString(R.string.feedback_explain),
                     icon = Icons.Rounded.QuestionAnswer,

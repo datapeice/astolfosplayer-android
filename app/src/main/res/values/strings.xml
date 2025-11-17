@@ -1,21 +1,13 @@
 <resources>
-    <!-- App name -->
     <string name="app_name" translatable="false">Astolfo\'s Player</string>
 
-    <!-- Links -->
-    <!-- Lyrics provider link -->
     <string name="lrclib_uri" translatable="false">https://lrclib.net</string>
-    <!-- Metadata provider link -->
     <string name="musicbrainz_uri" translatable="false">https://musicbrainz.org/</string>
-    <!-- Repository link -->
     <string name="repo_url" translatable="false">https://github.com/datapeice/astolfosplayer-android</string>
-    <!-- Feedback mail link -->
     <string name="feedback_url" translatable="false">mailto:ilya.datsiuk@gmail.com</string>
 
-    <!-- Common back button -->
     <string name="back">Back</string>
 
-    <!-- Setup screens -->
     <string name="get_started">Get started</string>
     <string name="permissions">Permissions</string>
     <string name="audio">Audio</string>
@@ -24,7 +16,6 @@
     <string name="next">Next</string>
     <string name="grant_permission_in_settings">Please, grant permission in Settings</string>
 
-    <!-- Track metadata fields -->
     <string name="title">Title</string>
     <string name="album">Album</string>
     <string name="artist">Artist</string>
@@ -48,7 +39,6 @@
     <string name="unknown_bitrate">Unknown Bitrate</string>
     <string name="unknown">Unknown</string>
 
-    <!-- Track dropdown menu -->
     <string name="track_menu_button">Track menu button</string>
     <string name="play_next">Play next</string>
     <string name="add_to_queue">Add to queue</string>
@@ -56,7 +46,6 @@
     <string name="go_to_album">Go to album</string>
     <string name="go_to_artist">Go to artist</string>
 
-    <!-- Tabs' names -->
     <string name="tracks">Tracks</string>
     <string name="albums">Albums</string>
     <string name="artists">Artists</string>
@@ -64,21 +53,17 @@
     <string name="playlists">Playlists</string>
     <string name="folders">Folders</string>
 
-    <!-- Sorting dialog -->
     <string name="sort_order">Sort order</string>
     <string name="sort_ascending">Sort ascending</string>
     <string name="sort_descending">Sort descending</string>
     <string name="track_count">Track Count</string>
 
-    <!-- Track search -->
     <string name="close_track_search">Close track search</string>
     <string name="track_search">Track search</string>
 
-    <!-- Scroll to buttons -->
     <string name="scroll_to_top">Scroll to top</string>
     <string name="scroll_to_current_track">Scroll to current track</string>
 
-    <!-- Expanded com.datapeice.astolfoplayer sheet -->
     <string name="close_player_sheet">Close player sheet</string>
     <string name="playback_mode_toggle">Toggle playback mode</string>
     <string name="show_lyrics">Show lyrics</string>
@@ -88,25 +73,21 @@
     <string name="stop_timer">Stop</string>
     <string name="start_timer">Start</string>
 
-    <!-- Play queue -->
     <string name="remove_from_queue">Remove from queue</string>
     <string name="queue">Queue</string>
     <string name="show_queue">Show queue</string>
 
-    <!-- Track info screen -->
     <string name="track_info">Track info</string>
     <string name="close_track_info_sheet">Close track info sheet</string>
     <string name="look_for_metadata">Look for metadata</string>
     <string name="edit_manually">Edit manually</string>
     <string name="back_to_track_info">Back to track info</string>
 
-    <!-- Risks of metadata editing dialog -->
     <string name="risks_of_metadata_editing">Risks of metadata editing</string>
     <string name="risks_of_metadata_editing_explain">Editing metadata is a powerful feature, but sometimes things can go sideways, and audio file tags might not behave as expected.\n\nWe recommend backing up your audio files before making changes — better safe than sorry!\n\nBy clicking \"Accept\", you\'re acknowledging that you\'re responsible for your files, have made the necessary backups, and understand that we can\'t be held accountable if something unexpected happens.\n\nClick \"Cancel\" if you\'d prefer not to proceed.</string>
     <string name="accept">Accept</string>
     <string name="cancel">Cancel</string>
 
-    <!-- Metadata search screen -->
     <string name="search">Search</string>
     <string name="description">Description</string>
     <string name="album_description">Album Description</string>
@@ -115,7 +96,6 @@
     <string name="search_menu">Info search dropdown menu</string>
     <string name="search_results_provided_by">Results provided by MusicBrainz</string>
 
-    <!-- Search tips dialog -->
     <string name="got_it">Got it</string>
     <string name="search_tips">Search tips</string>
     <string name="search_explain">We use the MusicBrainz API to help you find track info. You can make your searches more precise using simple filters.</string>
@@ -131,7 +111,6 @@
     <string name="combine_explain">Use \"AND\" to connect different search terms:</string>
     <string name="combine_example">\"4:44\" AND artist:\"Jay-Z\" AND release:\"4:44\"</string>
 
-    <!-- Search errors -->
     <string name="unknown_error_occurred">Unknown error occurred. Please try again.</string>
     <string name="query_was_corrupted">Query was corrupted. Please try again.</string>
     <string name="musicbrainz_server_error">MusicBrainz error occurred. Please try again.</string>
@@ -139,7 +118,6 @@
     <string name="failed_to_parse_response">Failed to parse response. Please try again.</string>
     <string name="no_internet">Looks like you\'re offline. Connect to the internet and try again.</string>
 
-    <!-- Changes screen -->
     <string name="changes">Changes</string>
     <string name="old_cover_art">Old cover art</string>
     <string name="new_cover_art">New cover art</string>
@@ -150,26 +128,22 @@
     <string name="artwork_change_note">If the artwork for the album of this track is present on your device, it will be used regardless of the selected artwork.</string>
     <string name="cover_art_from_gallery_note">To display cover art from the gallery you may need to restart the app or device.</string>
 
-    <!-- Changes errors -->
     <string name="failed_to_load_cover_art_album_id_corrupted">Failed to load cover art. Looks like album id for this recording is corrupted.</string>
     <string name="cover_art_not_found">Unfortunately, cover art for this recording was not found.</string>
     <string name="cover_art_archive_is_unavailable">Failed to load cover art. Cover Art Archive is unavailable. Please try again later.</string>
     <string name="failed_to_load_cover_art_request_timeout">Failed to load cover art in 3 minutes. Please check network quality and try again.</string>
 
-    <!-- Metadata writing errors -->
     <string name="write_permission_denied">Failed to overwrite metadata. Permission denied. Please try again.</string>
     <string name="no_read_permission">No read permission. Please grant it or try again.</string>
     <string name="no_write_permission">No write permission. Please grant it or try again.</string>
     <string name="failed_to_read">Failed to read file. Please try again.</string>
     <string name="failed_to_write">Failed to write file. Please try again.</string>
 
-    <!-- Manual editing screen -->
     <string name="edit">Edit</string>
     <string name="pick_art">Pick art</string>
     <string name="restore_art">Restore</string>
     <string name="restore_tag">Restore tag value</string>
 
-    <!-- Lyrics control screen -->
     <string name="lyrics_control">Lyrics control</string>
     <string name="lyrics_in_tag">Lyrics in tag</string>
     <string name="lyrics_in_tag_explain">Lyrics stored in audio file tag</string>
@@ -187,20 +161,17 @@
     <string name="published_successfully">Published successfully.</string>
     <string name="solving_challenge">Solving challenge...</string>
 
-    <!-- Lyrics sheet -->
     <string name="lyrics">Lyrics</string>
     <string name="close_lyrics_sheet">Close lyrics sheet</string>
     <string name="loading_lyrics">Loading lyrics</string>
     <string name="synced">Synced</string>
     <string name="plain">Plain</string>
 
-    <!-- Lyrics screen errors -->
     <string name="cant_look_for_lyrics_title_or_artist_is_missing">Can\'t look for lyrics. Title or artist is not specified for this track.</string>
     <string name="lyrics_not_found">Unfortunately, lyrics for this track can\'t be found on LRCLIB.</string>
     <string name="cant_find_lyrics">Can\'t find lyrics.</string>
     <string name="lyrics_provided_by">Lyrics provided by LRCLIB</string>
 
-    <!-- Playlists related -->
     <string name="create_playlist">Create playlist</string>
     <string name="add_to_playlist">Add to playlist</string>
     <string name="back_to_add_to_playlist">Back to add to playlist</string>
@@ -219,12 +190,10 @@
     <string name="enable_list_view">Enable list view</string>
     <string name="enable_grid_view">Enable grid view</string>
 
-    <!-- Playlists errors -->
     <string name="blank_playlist_name_error">Please name the playlist.</string>
     <string name="playlist_already_exists_error">This name is already taken.</string>
     <string name="track_is_already_on_playlist">This track is already on the playlist.</string>
 
-    <!-- Settings sheet -->
     <string name="settings">Settings</string>
     <string name="close_settings_sheet">Close settings sheet</string>
     <string name="theme">Theme</string>
@@ -237,7 +206,6 @@
     <string name="music_scan">Music scan</string>
     <string name="music_scan_supporting_text">Filter mode, folder management, scanning</string>
 
-    <!-- Theme settings -->
     <string name="appearance">Appearance</string>
     <string name="appearance_system">System</string>
     <string name="appearance_light">Light</string>
@@ -261,7 +229,6 @@
     <string name="use_album_art_color">Album art color</string>
     <string name="use_album_art_color_explain">Use dominant color of current track\'s cover art</string>
 
-    <!-- Playback settings -->
     <string name="audio_focus">Audio focus</string>
     <string name="audio_focus_explain">Pause playback when another app needs to play audio</string>
     <string name="changes_will_take_effect_on_next_launch">Changes will take effect on next launch.</string>
@@ -270,13 +237,11 @@
     <string name="jump_to_beginning">Jump to beginning</string>
     <string name="jump_to_beginning_explain">Restart current track on first press of previous button</string>
 
-    <!-- Tabs settings -->
     <string name="tabs">Tabs</string>
     <string name="tabs_supporting_text">Default tab and order</string>
     <string name="default_tab_and_order">Default tab and order</string>
     <string name="reorder_tab">Reorder tab</string>
 
-    <!-- Playlists settings -->
     <string name="filter_instead_of_search">Filter instead of search</string>
     <string name="filter_instead_of_search_explain">Replace playlist search with filter</string>
     <string name="playlists_supporting_text">Search field, import</string>
@@ -285,7 +250,6 @@
     <string name="import_playlist_explain">Add playlist from M3U file</string>
     <string name="imported_successfully">Imported successfully.</string>
 
-    <!-- Lyrics settings -->
     <string name="dark_theme_for_lyrics">Dark theme for lyrics</string>
     <string name="dark_theme_for_lyrics_explain">Apply dark theme to the lyrics screen, even if light mode is active</string>
     <string name="lyrics_preview_string">This very very very long line shows how the lyrics of the song with these settings will look on the corresponding screen</string>
@@ -299,7 +263,6 @@
     <string name="end">End</string>
     <string name="reset">Reset</string>
 
-    <!-- Music scan settings -->
     <string name="include_music_folder">Include Music folder</string>
     <string name="include_music_folder_explain">Show music from default Music folder</string>
     <string name="included_folders">Included folders</string>
@@ -330,37 +293,27 @@
     <string name="ignore_short_tracks">Ignore short tracks</string>
     <string name="ignore_short_tracks_explain">Do not show tracks shorter than 30 seconds</string>
 
-    <!-- About screen -->
     <string name="repo">Repository</string>
     <string name="repo_explain">Check out project\'s repo</string>
     <string name="feedback">Feedback</string>
     <string name="feedback_explain">Contact to suggest a feature or report a problem</string>
 
-    <!-- Open a track with "Open with..." dialog -->
     <string name="track_is_not_found_in_media_store">Unfortunately, this track is unavailable for the player. Maybe it\'s because it\'s in a folder not included in the scan.</string>
 
     <string name="copy_error">Copy error</string>
     <string name="select_all">Select all</string>
 
-
-
-    <!-- Вставьте этот блок внутрь тега <resources> в файле strings.xml -->
-
-    <!-- Строки для страницы настройки сервера -->
-    <string name="server_setting">Server Setting</string>
+    <string name="server_setting">Server Settings</string>
     <string name="server_address_hint">Server address</string>
-    <string name="login">Login</string>
+    <string name="login">Log in</string>
     <string name="password">Password</string>
     <string name="register">Register</string>
 
-    <!-- Строки для диалога загрузки и ошибок -->
-    <string name="loading_login">Log in...</string>
-    <string name="loading_register">Registration...</string>
+    <string name="loading_login">Logging in...</string>
+    <string name="loading_register">Registering...</string>
     <string name="login_success">Login successful!</string>
     <string name="register_success">Registration successful! Now you can log in.</string>
 
-    <!-- Строки для ошибок -->
-    <!-- Error strings -->
     <string name="error_invalid_address_format">Invalid address format. Example: http://1.2.3.4:8000</string>
     <string name="error_invalid_credentials">Invalid username or password</string>
     <string name="error_user_exists">A user with this name already exists</string>
@@ -369,28 +322,27 @@
     <string name="error_connection_failed">Failed to connect. Make sure the server is running.</string>
     <string name="error_read_timeout">Response timeout exceeded.</string>
     <string name="error_network_default">Network error: %s</string>
-    <string name="server_setting_supported_text">Server setings, user info</string> <!-- %s will be replaced with the error message -->
-    <!-- Добавьте этот блок в strings.xml -->
-    <string name="current_server_settings">Текущие настройки</string>
-    <string name="access_token">Токен доступа</string>
-    <string name="server_address">Адрес сервера</string>
-    <string name="save">Сохранить</string>
+    <string name="server_setting_supported_text">Server settings, user info</string>
+    <string name="current_server_settings">Current settings</string>
+    <string name="access_token">Access token</string>
+    <string name="server_address">Server address</string>
+    <string name="save">Save</string>
     <string name="password_hidden">********</string>
-    <string name="token_not_received">Токен еще не получен</string>
-    <string name="no_data">Нет данных</string>
-    <string name="rescan_folder">Rescan this folder\n</string>
+    <string name="token_not_received">Token not received yet</string>
+    <string name="no_data">No data</string>
+    <string name="rescan_folder">Rescan this folder</string>
     <string name="folder_not_selected">Folder not selected</string>
-    <string name="synchronization_started">Synchronization is started</string>
+    <string name="synchronization_started">Synchronization started</string>
     <string name="synchronization_finished">Synchronization finished</string>
     <string name="synchronization_error">Synchronization error</string>
     <string name="access_folder_error">Unable to access this folder</string>
     <string name="folder_not_found">Folder not found</string>
-    <string name="folder_for_sync_not_selected">Folder for sync not selected</string>
+    <string name="folder_for_sync_not_selected">Sync folder not selected</string>
     <string name="synchronization">Synchronization</string>
-    <string name="getting_status">Getting status from server...</string>
+    <string name="getting_status">Checking server status...</string>
     <string name="error_message">Error: %1$s</string>
     <string name="analyzing_local_files">Analyzing local files...</string>
-    <string name="all_files_synchronized">All files synchronized</string>
+    <string name="all_files_synchronized">All files are synchronized</string>
     <string name="files_found_to_upload_download">Found: %1$d to upload, %2$d to download</string>
     <string name="uploading_file_progress">Uploading %1$d/%2$d: %3$s</string>
     <string name="file_uploaded">Uploaded: %1$s</string>
@@ -404,17 +356,19 @@
     <string name="synchronization_completed">Synchronization completed</string>
     <string name="track_deleted">Track deleted</string>
     <string name="request_timeout">Request timeout</string>
-    <string name="delete_error">Delete error</string>
+    <string name="delete_error">Deletion error</string>
     <string name="confirm_delete_title">Delete File?</string>
-    <string name="confirm_delete_message">Yes</string>
+    <string name="confirm_delete_message">Are you sure you want to delete this file?</string>
     <string name="no_permission">No permission</string>
-    <string name="track_deleted_local_only">Track deleted locally\n</string>
+    <string name="track_deleted_local_only">Track deleted from device</string>
     <string name="deleting">Deleting...</string>
-    <string name="calculating_hash">Calculating hash...</string>
+    <string name="calculating_hash">Calculating checksum...</string>
     <string name="deleting_from_server">Deleting from server...</string>
-    <string name="cleaning_cache">Cleaning chache</string>
+    <string name="cleaning_cache">Clearing cache</string>
     <string name="updating_track_list">Updating track list</string>
     <string name="deleting_track">Deleting track: %s</string>
-
+    <string name="fork_repo">Forked from</string>
+    <string name="fork_repo_url">https://github.com/dn0ne/lotus</string>
+    <string name="fork_repo_explain">Based on this repository</string>
 
 </resources>
