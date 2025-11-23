@@ -7,30 +7,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.datapeice.astolfosplayer.R
 import com.datapeice.astolfosplayer.core.api.AuthApi
-import com.datapeice.astolfosplayer.core.api.AuthRequest
-import com.datapeice.astolfosplayer.core.api.AuthResponse
 import com.datapeice.astolfosplayer.core.data.MusicScanner
 import com.datapeice.astolfosplayer.core.data.Settings
 import com.datapeice.astolfosplayer.setup.data.SetupState
-import io.ktor.client.call.body
-import io.ktor.client.plugins.ConnectTimeoutException
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.isSuccess
+import io.grpc.StatusException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.net.ConnectException
-import java.net.SocketTimeoutException
-
 
 data class LoadingState(
     val isLoading: Boolean = false,
     val isFinished: Boolean = false,
     val message: String = ""
 )
-
-// --- ViewModel ---
 
 class SetupViewModel(
     private val setupState: SetupState,
@@ -41,13 +31,10 @@ class SetupViewModel(
     private val context: Context
 ) : ViewModel() {
 
-    // --- Состояния для UI ---
-
     val startDestination: SetupPage by mutableStateOf(
         if (!setupState.isComplete) SetupPage.Welcome else SetupPage.AudioPermission
     )
 
-    // Состояния для полей ввода
     private val _serverAddress = MutableStateFlow(settings.serverAddress)
     val serverAddress = _serverAddress.asStateFlow()
 
@@ -57,19 +44,18 @@ class SetupViewModel(
     private val _password = MutableStateFlow(settings.password)
     val password = _password.asStateFlow()
 
-    // Состояние для ошибок
+    private val _securityKey = MutableStateFlow("")
+    val securityKey = _securityKey.asStateFlow()
+
     private val _serverUrlError = MutableStateFlow<String?>(null)
     val serverUrlError = _serverUrlError.asStateFlow()
 
-    // Состояние для диалога загрузки
     private val _loadingState = MutableStateFlow(LoadingState())
     val loadingState = _loadingState.asStateFlow()
 
-    // Состояние для навигации после успешного входа
     private val _loginSuccessful = MutableStateFlow(false)
     val loginSuccessful = _loginSuccessful.asStateFlow()
 
-    // Состояния для других экранов настройки
     private val _isAudioPermissionGranted = MutableStateFlow(false)
     val isAudioPermissionGranted = _isAudioPermissionGranted.asStateFlow()
 
@@ -79,33 +65,18 @@ class SetupViewModel(
     val isSetupComplete: Boolean
         get() = setupState.isComplete
 
-
-    // --- Обработчики событий от UI ---
-
-    private fun handleNetworkException(e: Exception) {
-        e.printStackTrace()
-        val errorMessage = when (e) {
-            is SocketTimeoutException -> context.getString(R.string.error_server_timeout)
-            is ConnectException -> context.getString(R.string.error_connection_failed)
-            else -> context.getString(R.string.error_network_default, e.localizedMessage ?: "Unknown error")
-        }
-
-        _loadingState.update { LoadingState(isFinished = true, message = errorMessage) }
-    }
     fun onServerAddressChanged(address: String) { _serverAddress.update { address } }
     fun onLoginChanged(newLogin: String) { _login.update { newLogin } }
     fun onPasswordChanged(newPassword: String) { _password.update { newPassword } }
+    fun onSecurityKeyChanged(key: String) { _securityKey.update { key } }
     fun dismissLoadingDialog() { _loadingState.update { LoadingState() } }
     fun onNavigationHandled() { _loginSuccessful.update { false } }
 
     fun onFolderPicked(path: String) {
         _selectedFolder.update { path }
-        // Сохраняем эту папку как единственную для сканирования
         settings.updateExtraScanFolders(setOf(path))
         settings.updateExcludedScanFolders(emptySet())
     }
-
-    // --- Сетевая логика ---
 
     fun onLogin() {
         _serverUrlError.update { null }
@@ -116,24 +87,33 @@ class SetupViewModel(
 
         viewModelScope.launch {
             _loadingState.update { LoadingState(isLoading = true, message = context.getString(R.string.loading_login)) }
+
             try {
-                val request = AuthRequest(username = _login.value, password = _password.value)
-                val response = authApi.login(_serverAddress.value, request)
+                // ВАЖНО: Сохраняем адрес ДО попытки входа.
+                // GrpcChannelProvider читает адрес из settings при создании канала.
+                settings.serverAddress = _serverAddress.value
 
-                if (response.status.isSuccess()) {
-                    val authResponse: AuthResponse = response.body()
-                    settings.serverAddress = _serverAddress.value
-                    settings.login = _login.value
-                    settings.password = _password.value
-                    settings.accessToken = authResponse.accessToken
+                // Теперь authApi создаст канал, используя уже сохраненный адрес
+                val response = authApi.login(_login.value, _password.value)
 
-                    _loadingState.update { LoadingState(isFinished = true, message = context.getString(R.string.login_success)) }
-                    _loginSuccessful.update { true }
-                } else {
-                    _loadingState.update { LoadingState(isFinished = true, message = context.getString(R.string.error_invalid_credentials)) }
+                // Сохраняем остальные данные после успеха
+                settings.login = _login.value
+                settings.password = _password.value
+                settings.accessToken = response.token
+
+                _loadingState.update { LoadingState(isFinished = true, message = context.getString(R.string.login_success)) }
+                _loginSuccessful.update { true }
+
+            } catch (e: io.grpc.StatusException) {
+                val errorMessage = when (e.status.code) {
+                    io.grpc.Status.Code.UNAUTHENTICATED -> context.getString(R.string.error_invalid_credentials)
+                    io.grpc.Status.Code.UNAVAILABLE -> context.getString(R.string.error_connection_failed) + " (Check IP/Port)"
+                    io.grpc.Status.Code.DEADLINE_EXCEEDED -> context.getString(R.string.error_server_timeout)
+                    else -> e.status.description ?: "gRPC Error: ${e.status.code}"
                 }
+                _loadingState.update { LoadingState(isFinished = true, message = errorMessage) }
             } catch (e: Exception) {
-                handleNetworkException(e)
+                _loadingState.update { LoadingState(isFinished = true, message = e.message ?: "Unknown error") }
             }
         }
     }
@@ -145,35 +125,45 @@ class SetupViewModel(
             return
         }
 
+        if (_securityKey.value.isBlank()) {
+            _loadingState.update { LoadingState(isFinished = true, message = "Security key is required") }
+            return
+        }
+
         viewModelScope.launch {
             _loadingState.update { LoadingState(isLoading = true, message = context.getString(R.string.loading_register)) }
-            try {
-                val request = AuthRequest(username = _login.value, password = _password.value)
-                val response = authApi.register(_serverAddress.value, request)
 
-                if (response.status.isSuccess()) {
-                    _loadingState.update { LoadingState(isFinished = true, message = context.getString(R.string.register_success)) }
-                } else {
-                    val errorBody = response.bodyAsText()
-                    val errorMessage = if (errorBody.contains("already exists", ignoreCase = true)) {
-                        context.getString(R.string.error_user_exists)
-                    } else {
-                        context.getString(R.string.error_register_failed)
-                    }
-                    _loadingState.update { LoadingState(isFinished = true, message = errorMessage) }
+            try {
+                // ВАЖНО: Сохраняем адрес ДО попытки регистрации
+                settings.serverAddress = _serverAddress.value
+
+                authApi.register(_login.value, _password.value, _securityKey.value)
+
+                _loadingState.update { LoadingState(isFinished = true, message = context.getString(R.string.register_success)) }
+            } catch (e: io.grpc.StatusException) {
+                val errorMessage = when (e.status.code) {
+                    io.grpc.Status.Code.ALREADY_EXISTS -> context.getString(R.string.error_user_exists)
+                    io.grpc.Status.Code.PERMISSION_DENIED -> "Invalid security key"
+                    io.grpc.Status.Code.UNAVAILABLE -> context.getString(R.string.error_connection_failed)
+                    io.grpc.Status.Code.DEADLINE_EXCEEDED -> context.getString(R.string.error_server_timeout)
+                    else -> e.status.description ?: "Registration failed"
                 }
+                _loadingState.update { LoadingState(isFinished = true, message = errorMessage) }
             } catch (e: Exception) {
-                handleNetworkException(e)
+                _loadingState.update { LoadingState(isFinished = true, message = e.message ?: "Unknown error") }
             }
         }
     }
-
-    // --- Вспомогательные и другие функции ---
-
     private fun isServerAddressValid(address: String): Boolean {
-        val urlRegex = Regex("""^http://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})$""")
-        return urlRegex.matches(address)
+        // Проверка IPv4 (например: 78.10.162.140)
+        val ipv4Regex = Regex("""^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$""")
+
+        // Проверка домена (например: ap.datapeice.me, example.com, sub.domain.org)
+        val domainRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$""")
+
+        return ipv4Regex.matches(address) || domainRegex.matches(address)
     }
+
 
     fun onFinishSetupClick() {
         setupState.isComplete = true

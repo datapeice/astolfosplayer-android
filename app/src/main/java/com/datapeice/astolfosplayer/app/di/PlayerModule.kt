@@ -1,34 +1,32 @@
 package com.datapeice.astolfosplayer.app.di
 
+import androidx.room.Room
 import com.datapeice.astolfosplayer.EqualizerController
 import com.datapeice.astolfosplayer.app.data.LyricsReader
 import com.datapeice.astolfosplayer.app.data.LyricsReaderImpl
 import com.datapeice.astolfosplayer.app.data.MetadataWriter
 import com.datapeice.astolfosplayer.app.data.MetadataWriterImpl
 import com.datapeice.astolfosplayer.app.data.SavedPlayerState
+import com.datapeice.astolfosplayer.app.data.db.AppDatabase
 import com.datapeice.astolfosplayer.app.data.remote.lyrics.LrclibLyricsProvider
 import com.datapeice.astolfosplayer.app.data.remote.lyrics.LyricsProvider
 import com.datapeice.astolfosplayer.app.data.remote.metadata.MetadataProvider
 import com.datapeice.astolfosplayer.app.data.remote.metadata.MusicBrainzMetadataProvider
-import com.datapeice.astolfosplayer.app.data.repository.LyricsJson
 import com.datapeice.astolfosplayer.app.data.repository.LyricsRepository
-import com.datapeice.astolfosplayer.app.data.repository.PlaylistJson
 import com.datapeice.astolfosplayer.app.data.repository.PlaylistRepository
-import com.datapeice.astolfosplayer.app.data.repository.RealmLyricsRepository
-import com.datapeice.astolfosplayer.app.data.repository.RealmPlaylistRepository
+import com.datapeice.astolfosplayer.app.data.repository.RoomLyricsRepository
+import com.datapeice.astolfosplayer.app.data.repository.RoomPlaylistRepository
 import com.datapeice.astolfosplayer.app.data.repository.TrackIdStorage
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepository
 import com.datapeice.astolfosplayer.app.data.repository.TrackRepositoryImpl
 import com.datapeice.astolfosplayer.app.presentation.PlayerViewModel
-import com.datapeice.astolfosplayer.core.api.KtorTrackApi
+import com.datapeice.astolfosplayer.core.api.GrpcTrackApi
 import com.datapeice.astolfosplayer.core.api.TrackApi
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
-import io.realm.kotlin.Realm
-import io.realm.kotlin.RealmConfiguration
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -36,7 +34,6 @@ import org.koin.dsl.module
 
 val playerModule = module {
 
-    // ====> ДОБАВЬТЕ ЭТУ СТРОКУ <====
     single { TrackIdStorage(androidContext()) }
 
     single<TrackRepository> {
@@ -54,18 +51,21 @@ val playerModule = module {
     }
 
     single<TrackApi> {
-        KtorTrackApi(
-            httpClient = get(),
-            settings = get()
+        GrpcTrackApi(
+            context = androidContext(),
+            settings = get(),
+            channelProvider = get()
         )
     }
 
+    // ИСПРАВЛЕНИЕ: Используем OkHttp вместо CIO
     single<HttpClient> {
-        HttpClient(CIO) {
+        HttpClient(OkHttp) {
             install(ContentNegotiation) {
                 json(
                     Json {
                         ignoreUnknownKeys = true
+                        isLenient = true
                     }
                 )
             }
@@ -93,25 +93,36 @@ val playerModule = module {
         )
     }
 
-    single<Realm> {
-        val configuration = RealmConfiguration.create(
-            schema = setOf(LyricsJson::class, PlaylistJson::class)
-        )
+    // --- НАЧАЛО: ИЗМЕНЕНИЯ ROOM ---
 
-        Realm.open(configuration)
+    // 1. Создание базы данных
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java,
+            "astolfos_player.db"
+        )
+            .fallbackToDestructiveMigration() // Удалит старую базу при изменении структуры
+            .build()
     }
 
+    // 2. Предоставление DAO
+    single { get<AppDatabase>().playlistDao() }
+    single { get<AppDatabase>().lyricsDao() }
+
+    // 3. Репозитории теперь используют DAO и новые Room реализации
     single<LyricsRepository> {
-        RealmLyricsRepository(
-            realm = get()
+        RoomLyricsRepository(
+            dao = get()
         )
     }
 
     single<PlaylistRepository> {
-        RealmPlaylistRepository(
-            realm = get()
+        RoomPlaylistRepository(
+            dao = get()
         )
     }
+    // --- КОНЕЦ: ИЗМЕНЕНИЯ ROOM ---
 
     single<EqualizerController> {
         EqualizerController(
@@ -135,7 +146,8 @@ val playerModule = module {
             lyricsRepository = get(),
             lyricsReader = get(),
             playlistRepository = get(),
-            unsupportedArtworkEditFormats = get<MetadataWriter>().unsupportedArtworkEditFormats,
+            // ИСПРАВЛЕНО: добавлен .toSet() для конвертации List в Set
+            unsupportedArtworkEditFormats = get<MetadataWriter>().unsupportedArtworkEditFormats.toSet(),
             settings = get(),
             musicScanner = get(),
             equalizerController = get(),

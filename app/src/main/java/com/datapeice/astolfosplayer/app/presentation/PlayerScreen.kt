@@ -784,8 +784,7 @@ fun PlayerScreen(
                                                 .fillMaxWidth(fraction = deletionState.progress)
                                                 .fillMaxHeight()
                                                 .background(
-                                                    // ----> ИЗМЕНЕНИЕ №1 <----
-                                                    // Меняем error на primary для соответствия стилю
+                                                    // ----> ИЗМЕНЕНИЕ №1 (Удаление) <----
                                                     color = colorScheme.primary.copy(alpha = 0.2f),
                                                     shape = MaterialTheme.shapes.small
                                                 )
@@ -820,8 +819,7 @@ fun PlayerScreen(
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Medium
                                             ),
-                                            // ----> ИЗМЕНЕНИЕ №2 <----
-                                            // Меняем error на primary
+                                            // ----> ИЗМЕНЕНИЕ №2 (Удаление) <----
                                             color = colorScheme.primary
                                         )
                                     }
@@ -830,7 +828,8 @@ fun PlayerScreen(
                         }
                         // Прогресс-бар синхронизации
                         AnimatedVisibility(
-                            visible = syncState.isSyncing,
+                            // ----> КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Показываем, если sync идет ИЛИ если есть ошибка
+                            visible = syncState.isSyncing || syncState.isError,
                             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                         ) {
@@ -854,10 +853,15 @@ fun PlayerScreen(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .fillMaxWidth(fraction = syncState.progress)
+                                                // 1. При ошибке заполняем всю ширину (1f), иначе используем progress
+                                                .fillMaxWidth(fraction = if (syncState.isError) 1f else syncState.progress)
                                                 .fillMaxHeight()
                                                 .background(
-                                                    color = colorScheme.primary.copy(alpha = 0.2f),
+                                                    // 2. Используем цвет ошибки (error) или основной (primary)
+                                                    color = if (syncState.isError)
+                                                        colorScheme.error.copy(alpha = 0.2f)
+                                                    else
+                                                        colorScheme.primary.copy(alpha = 0.2f),
                                                     shape = MaterialTheme.shapes.small
                                                 )
                                         )
@@ -872,33 +876,37 @@ fun PlayerScreen(
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
+                                                // 3. Заголовок
                                                 text = stringResource( R.string.synchronization),
                                                 style = MaterialTheme.typography.bodyMedium.copy(
                                                     fontWeight = FontWeight.Medium
                                                 ),
-                                                color = colorScheme.onSurface
+                                                // 4. Цвет заголовка: красный при ошибке
+                                                color = if (syncState.isError) colorScheme.error else colorScheme.onSurface
                                             )
                                             Text(
                                                 text = syncState.message,
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = colorScheme.onSurfaceVariant,
+                                                // 5. Цвет сообщения: красный при ошибке
+                                                color = if (syncState.isError) colorScheme.error else colorScheme.onSurfaceVariant,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                         Text(
-                                            text = "${(syncState.progress * 100).toInt()}%",
+                                            // 6. Скрываем процент прогресса при ошибке
+                                            text = if (syncState.isError) "" else "${(syncState.progress * 100).toInt()}%",
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Medium
                                             ),
-                                            color = colorScheme.primary
+                                            // 7. Цвет процента: красный при ошибке
+                                            color = if (syncState.isError) colorScheme.error else colorScheme.primary
                                         )
                                     }
                                 }
                             }
                         }
                     }
-
                     AnimatedVisibility(
                         visible = currentTrack != null,
                         enter = slideInVertically(initialOffsetY = { it }),

@@ -45,7 +45,6 @@ fun SetupScreen(
         },
         popExitTransition = {
             slideOutHorizontally(targetOffsetX = { it })
-
         }
     ) {
         composable<SetupPage.Welcome> {
@@ -59,7 +58,6 @@ fun SetupScreen(
                     .safeDrawingPadding()
             )
         }
-// В файле SetupScreen.kt
 
         composable<SetupPage.ServerSetup> {
             val serverError by viewModel.serverUrlError.collectAsState()
@@ -67,15 +65,18 @@ fun SetupScreen(
             val serverAddress by viewModel.serverAddress.collectAsState()
             val login by viewModel.login.collectAsState()
             val password by viewModel.password.collectAsState()
+            val securityKey by viewModel.securityKey.collectAsState()
             val loginSuccessful by viewModel.loginSuccessful.collectAsState()
 
             ServerSetupPage(
                 serverAddress = serverAddress,
                 login = login,
                 password = password,
+                securityKey = securityKey,
                 onServerAddressChange = viewModel::onServerAddressChanged,
                 onLoginChange = viewModel::onLoginChanged,
                 onPasswordChange = viewModel::onPasswordChanged,
+                onSecurityKeyChange = viewModel::onSecurityKeyChanged,
                 onLoginClick = {
                     viewModel.onLogin()
                 },
@@ -92,7 +93,6 @@ fun SetupScreen(
             LoadingDialog(
                 state = loadingState,
                 onDismiss = {
-                    // Если вход был успешным, переходим на следующий экран
                     if (loginSuccessful) {
                         viewModel.onNavigationHandled()
                         navController.navigate(SetupPage.AudioPermission)
@@ -121,13 +121,12 @@ fun SetupScreen(
                     .safeDrawingPadding()
             )
         }
+
         composable<SetupPage.MusicScan> {
-            // Используем новое состояние для ОДНОЙ папки
-            // Используем новое состояние для ОДНОЙ папки
             val selectedFolder by viewModel.selectedFolder.collectAsState()
 
             MusicScanPage(
-                selectedFolderUriString = selectedFolder, // <-- ИСПРАВЛЕНО
+                selectedFolderUriString = selectedFolder,
                 onPickFolderClick = { onFolderPick(true) },
                 onFinishClick = {
                     viewModel.onFinishSetupClick()

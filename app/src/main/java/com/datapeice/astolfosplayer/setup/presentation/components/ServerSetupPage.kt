@@ -8,8 +8,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -22,52 +27,45 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.datapeice.astolfosplayer.R
-import androidx.compose.material.icons.Icons // <-- Добавьте этот импорт
-import androidx.compose.material.icons.filled.Dns // <-- И этот тоже
 
-/**
- * Экран для настройки сервера, входа в систему или регистрации.
- *
- * @param onLoginClick Колбэк, вызываемый при нажатии на кнопку "Логин".
- *                     Передает адрес сервера, логин и пароль.
- * @param onRegisterClick Колбэк, вызываемый при нажатии на кнопку "Регистрация".
- *                        Передает адрес сервера, логин и пароль.
- * @param modifier Модификатор для этого composable.
- */
 @Composable
 fun ServerSetupPage(
-    // Изменяем колбэки, чтобы они соответствовали новым кнопкам
-    serverAddress: String,login: String,
+    serverAddress: String,
+    login: String,
     password: String,
+    securityKey: String,
     onServerAddressChange: (String) -> Unit,
     onLoginChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onSecurityKeyChange: (String) -> Unit,
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
-    errorMessage: String?, // <-- ДОБАВЬТЕ ЭТОТ ПАРАМЕТР
+    errorMessage: String?,
     modifier: Modifier = Modifier
 ) {
     val areFieldsFilled = serverAddress.isNotBlank() && login.isNotBlank() && password.isNotBlank()
+    val areRegistrationFieldsFilled = areFieldsFilled && securityKey.isNotBlank()
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(28.dp)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
-            modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Заголовок страницы
             SetupPageHeader(
                 title = stringResource(R.string.server_setting),
-                icon = Icons.Filled.Dns // Используем иконку сервера
+                icon = Icons.Filled.Dns
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Поле для адреса сервера
             OutlinedTextField(
                 value = serverAddress,
                 onValueChange = onServerAddressChange,
@@ -76,23 +74,25 @@ fun ServerSetupPage(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 isError = errorMessage != null
-
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
             if (errorMessage != null) {
                 Text(
                     text = errorMessage,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 4.dp)
                 )
             }
-            // Поле для логина
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             OutlinedTextField(
                 value = login,
                 onValueChange = onLoginChange,
-                label = { Text(stringResource(R.string.login)) }, // Замените на stringResource
+                label = { Text(stringResource(R.string.login)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
@@ -100,44 +100,49 @@ fun ServerSetupPage(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Поле для пароля
             OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text(stringResource(R.string.password)) }, // Замените на stringResource
+                label = { Text(stringResource(R.string.password)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(), // Скрывает символы пароля
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = securityKey,
+                onValueChange = onSecurityKeyChange,
+                label = { Text("Security Key (для регистрации)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Ряд с кнопками внизу экрана
         Row(
-            modifier = Modifier
-                .align(Alignment.BottomEnd) // Выравниваем весь ряд по нижнему правому краю
-                .fillMaxWidth(), // Растягиваем на всю ширину
-            horizontalArrangement = Arrangement.SpaceBetween, // <<< КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: расталкивает элементы по краям
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Кнопка "Регистрация" слева
-            Button( // <<< ИЗМЕНЕНО: теперь это тоже Button
+            Button(
                 onClick = onRegisterClick,
-                enabled = areFieldsFilled
+                enabled = areRegistrationFieldsFilled
             ) {
-                Text(stringResource(R.string.register)) // Замените на stringResource
+                Text(stringResource(R.string.register))
             }
 
-            // Кнопка "Логин" справа
             Button(
                 onClick = onLoginClick,
                 enabled = areFieldsFilled
             ) {
-                Text(stringResource(R.string.login)) // Замените на stringResource
+                Text(stringResource(R.string.login))
             }
         }
-
-
     }
 }

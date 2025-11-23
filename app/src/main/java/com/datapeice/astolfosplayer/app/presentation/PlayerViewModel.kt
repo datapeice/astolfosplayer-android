@@ -2,7 +2,6 @@ package com.datapeice.astolfosplayer.app.presentation
 
 import android.content.Context
 import android.net.Uri
-import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastFirstOrNull
@@ -32,6 +31,7 @@ import com.datapeice.astolfosplayer.app.domain.result.Result
 import com.datapeice.astolfosplayer.app.domain.sort.sortedBy
 import com.datapeice.astolfosplayer.app.domain.track.Playlist
 import com.datapeice.astolfosplayer.app.domain.track.Track
+import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
 import com.datapeice.astolfosplayer.app.domain.track.format
 import com.datapeice.astolfosplayer.app.presentation.PlayerScreenEvent.*
 import com.datapeice.astolfosplayer.app.presentation.components.playback.PlaybackState
@@ -44,8 +44,10 @@ import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.Lyrics
 import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.ManualInfoEditSheetState
 import com.datapeice.astolfosplayer.app.presentation.components.trackinfo.TrackInfoSheetState
 import com.datapeice.astolfosplayer.core.api.SyncApi
+import com.datapeice.astolfosplayer.core.api.TrackApi
 import com.datapeice.astolfosplayer.core.data.MusicScanner
 import com.datapeice.astolfosplayer.core.data.Settings
+import com.datapeice.astolfosplayer.core.utils.FileHasher
 import com.datapeice.astolfosplayer.setup.presentation.SetupViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -62,38 +64,32 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.datapeice.astolfosplayer.app.domain.track.filterBySelectedFolder
-import com.datapeice.astolfosplayer.core.api.TrackApi
-import com.datapeice.astolfosplayer.core.utils.FileHasher
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.io.IOException
-import java.io.File
-import kotlin.compareTo
-import kotlin.toString
+
 data class SyncState(
     val isSyncing: Boolean = false,
     val message: String = "",
-    val progress: Float = 0f
+    val progress: Float = 0f,
+    val isError: Boolean = false
 )
+
 class PlayerViewModel(
     private val savedPlayerState: SavedPlayerState,
     private val trackRepository: TrackRepository,
     private val metadataProvider: MetadataProvider,
     private val lyricsProvider: LyricsProvider,
-    private val syncApi: SyncApi,
+    private val syncApi: SyncApi, // Используем интерфейс SyncApi, а не конкретную реализацию
     private val lyricsRepository: LyricsRepository,
     private val lyricsReader: LyricsReader,
     private val playlistRepository: PlaylistRepository,
-    private val unsupportedArtworkEditFormats: List<String>,
+    private val unsupportedArtworkEditFormats: Set<String>, // Set<String> лучше для проверки in
     val settings: Settings,
     private val musicScanner: MusicScanner,
     private val equalizerController: EqualizerController,
     private val setupViewModel: SetupViewModel,
     private val context: Context,
-    private val trackApi: TrackApi, // <-- добавьте это
-
-
+    private val trackApi: TrackApi
 ) : ViewModel() {
+
     private val trackIdStorage = TrackIdStorage(context)
 
     var player: Player? = null
@@ -101,12 +97,13 @@ class PlayerViewModel(
     val syncState = _syncState.asStateFlow()
     private val _deletionState = MutableStateFlow(SyncState())
     val deletionState = _deletionState.asStateFlow()
+
     private val _settingsSheetState = MutableStateFlow(
         SettingsSheetState(
             settings = settings,
             musicScanner = musicScanner,
             equalizerController = equalizerController,
-            setupViewModel = setupViewModel // <-- И ПЕРЕДАЙТЕ ЕЕ ЗДЕСЬ
+            setupViewModel = setupViewModel
         )
     )
     val settingsSheetState = _settingsSheetState.stateIn(
@@ -262,7 +259,6 @@ class PlayerViewModel(
     private val _pendingTrackUris = Channel<Uri>()
 
     init {
-
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 val allTracks = trackRepository.getTracks()
@@ -290,7 +286,6 @@ class PlayerViewModel(
                             player?.clearMediaItems()
                         }
                     }
-
                 }
                 delay(5000L)
             }
@@ -371,7 +366,6 @@ class PlayerViewModel(
                     }
                 }
             )
-
         }
 
         viewModelScope.launch {
@@ -402,7 +396,6 @@ class PlayerViewModel(
     }
 
     fun onEvent(event: PlayerScreenEvent) {
-
         when (event) {
             is PlayerScreenEvent.OnSyncClick -> onSyncClick()
             is OnTrackClick -> {
@@ -444,7 +437,6 @@ class PlayerViewModel(
             OnPlayClick -> {
                 player?.let { player ->
                     if (player.currentMediaItem == null) return
-
                     player.play()
                 }
             }
@@ -452,7 +444,6 @@ class PlayerViewModel(
             OnSeekToNextClick -> {
                 player?.let { player ->
                     if (!player.hasNextMediaItem()) return
-
                     player.seekToNextMediaItem()
                 }
             }
@@ -475,7 +466,6 @@ class PlayerViewModel(
             is OnSeekTo -> {
                 player?.let { player ->
                     if (player.currentMediaItem == null) return
-
                     player.seekTo(event.position)
                     _playbackState.update {
                         it.copy(
@@ -622,7 +612,6 @@ class PlayerViewModel(
                                 )
                             }
                         }
-
                     }
                 } ?: run {
                     onEvent(
@@ -757,49 +746,13 @@ class PlayerViewModel(
                                             message = R.string.query_was_corrupted
                                         )
                                     )
-                                    Log.d("Metadata Search", "${result.error} - ${event.query}")
                                 }
-
-                                DataError.Network.InternalServerError -> {
-                                    SnackbarController.sendEvent(
-                                        SnackbarEvent(
-                                            message = R.string.musicbrainz_server_error
-                                        )
-                                    )
-                                }
-
-                                DataError.Network.ServiceUnavailable -> {
-                                    SnackbarController.sendEvent(
-                                        SnackbarEvent(
-                                            message = R.string.musicbrainz_is_unavailable
-                                        )
-                                    )
-                                }
-
-                                DataError.Network.ParseError -> {
-                                    SnackbarController.sendEvent(
-                                        SnackbarEvent(
-                                            message = R.string.failed_to_parse_response
-                                        )
-                                    )
-                                    Log.d("Metadata Search", "${result.error} - ${event.query}")
-                                }
-
-                                DataError.Network.NoInternet -> {
-                                    SnackbarController.sendEvent(
-                                        SnackbarEvent(
-                                            message = R.string.no_internet
-                                        )
-                                    )
-                                }
-
                                 else -> {
                                     SnackbarController.sendEvent(
                                         SnackbarEvent(
                                             message = R.string.unknown_error_occurred
                                         )
                                     )
-                                    Log.d("Metadata Search", "${result.error} - ${event.query}")
                                 }
                             }
                         }
@@ -845,55 +798,11 @@ class PlayerViewModel(
                             }
 
                             is Result.Error -> {
-                                when (result.error) {
-                                    DataError.Network.BadRequest -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.failed_to_load_cover_art_album_id_corrupted,
-                                            )
-                                        )
-                                    }
-
-                                    DataError.Network.NotFound -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.cover_art_not_found
-                                            )
-                                        )
-                                    }
-
-                                    DataError.Network.ServiceUnavailable -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.cover_art_archive_is_unavailable
-                                            )
-                                        )
-                                    }
-
-                                    DataError.Network.NoInternet -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.no_internet
-                                            )
-                                        )
-                                    }
-
-                                    DataError.Network.RequestTimeout -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.failed_to_load_cover_art_request_timeout
-                                            )
-                                        )
-                                    }
-
-                                    else -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.unknown_error_occurred
-                                            )
-                                        )
-                                    }
-                                }
+                                SnackbarController.sendEvent(
+                                    SnackbarEvent(
+                                        message = R.string.cover_art_not_found
+                                    )
+                                )
                                 _changesSheetState.update {
                                     it.copy(
                                         isLoadingArt = false
@@ -1274,39 +1183,11 @@ class PlayerViewModel(
                             }
 
                             is Result.Error -> {
-                                when (result.error) {
-                                    DataError.Network.BadRequest -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.unable_to_publish
-                                            )
-                                        )
-                                    }
-
-                                    DataError.Network.ParseError -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.failed_to_parse_response
-                                            )
-                                        )
-                                    }
-
-                                    DataError.Network.NoInternet -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.no_internet
-                                            )
-                                        )
-                                    }
-
-                                    else -> {
-                                        SnackbarController.sendEvent(
-                                            SnackbarEvent(
-                                                message = R.string.unknown_error_occurred
-                                            )
-                                        )
-                                    }
-                                }
+                                SnackbarController.sendEvent(
+                                    SnackbarEvent(
+                                        message = R.string.unknown_error_occurred
+                                    )
+                                )
                             }
                         }
 
@@ -1322,12 +1203,100 @@ class PlayerViewModel(
             else -> {}
         }
     }
+
+    private fun onSyncClick() {
+        if (_syncState.value.isSyncing) return
+
+        viewModelScope.launch {
+            var syncSucceeded = false // Флаг для отслеживания успешности
+
+            try {
+                val folderUriString = settings.extraScanFolders.value.firstOrNull()
+                if (folderUriString.isNullOrBlank()) {
+                    showSyncError(context.getString(R.string.folder_for_sync_not_selected))
+                    return@launch
+                }
+
+                val folderUri = Uri.parse(folderUriString)
+                val musicFolder = DocumentFile.fromTreeUri(context, folderUri)
+                if (musicFolder == null || !musicFolder.exists()) {
+                    showSyncError(context.getString(R.string.access_folder_error))
+                    return@launch
+                }
+
+                _syncState.value = SyncState(
+                    isSyncing = true,
+                    message = context.getString(R.string.synchronization_started),
+                    progress = 0f
+                )
+
+                // Выполнение синхронизации в IO-потоке
+                withContext(Dispatchers.IO) {
+                    syncApi.performSync(
+                        localFolder = musicFolder,
+                        onProgress = { current: Int, total: Int, message: String ->
+                            launch(Dispatchers.Main) {
+                                _syncState.value = _syncState.value.copy(
+                                    message = message,
+                                    progress = if (total > 0) current.toFloat() / total else 0f
+                                )
+                                Log.d("SyncProgress", "$current/$total: $message")
+                            }
+                        },
+                        onComplete = {
+                            // onComplete вызывается только при успешном завершении в GrpcSyncApi
+                            launch(Dispatchers.Main) {
+                                val allTracks = trackRepository.getTracks()
+                                val filteredTracks = allTracks.filterBySelectedFolder(folderUriString)
+                                _trackList.value = filteredTracks.sortedBy(_trackSort.value, _trackSortOrder.value)
+                            }
+                        },
+
+                    )
+                }
+
+                // Если withContext завершился без исключений, синхронизация успешна
+                syncSucceeded = true
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Если произошла ошибка, вызываем showSyncError, чтобы установить isError=true
+                showSyncError("Sync failed: ${e.message}")
+            } finally {
+                // Блок, который отвечает за окончательный сброс состояния
+                if (syncSucceeded) {
+                    // 1. Сообщение об успешном завершении
+                    _syncState.value = _syncState.value.copy(
+                        isSyncing = false, // Завершено
+                        message = context.getString(R.string.synchronization_finished),
+                        progress = 1f,
+                        isError = false
+                    )
+                    // 2. Сброс состояния через 2 секунды
+                    delay(2000)
+                    _syncState.value = SyncState()
+
+                } else {
+                    // Если не успешно, showSyncError уже установил isError,
+                    // поэтому здесь нужно только сбросить isSyncing, если это еще не сделано.
+                    if (_syncState.value.isSyncing) {
+                        _syncState.value = _syncState.value.copy(isSyncing = false)
+                    }
+                }
+            }
+        }
+    }
+    private suspend fun showSyncError(msg: String) {
+        // Устанавливаем isError = true для отображения UI ошибки
+        _syncState.value = SyncState(isSyncing = false, message = msg, isError = true)
+        delay(3000)
+        // Сбрасываем состояние
+        _syncState.value = SyncState()
+    }
+
     fun updateTrackId(fileHash: String, trackId: String) {
         viewModelScope.launch {
-            // Сохраняем в постоянное хранилище
             trackIdStorage.saveTrackId(fileHash, trackId)
-
-            // Обновляем текущий список треков в памяти
             _trackList.value = _trackList.value.map { track ->
                 val hash = try {
                     context.contentResolver.openInputStream(track.uri)?.use {
@@ -1342,74 +1311,6 @@ class PlayerViewModel(
         }
     }
 
-    private fun onSyncClick() {
-        if (_syncState.value.isSyncing) return
-        viewModelScope.launch {
-            try {
-                val folderUriString = settings.extraScanFolders.value.firstOrNull()
-                if (folderUriString.isNullOrBlank()) {
-                    _syncState.value = SyncState(
-                        isSyncing = false,
-                        message = context.getString(R.string.folder_for_sync_not_selected)
-                    )
-                    delay(3000)
-                    _syncState.value = SyncState()
-                    return@launch
-                }
-
-                val folderUri = Uri.parse(folderUriString)
-                val musicFolder = DocumentFile.fromTreeUri(context, folderUri)
-                if (musicFolder == null || !musicFolder.exists()) {
-                    _syncState.value = SyncState(
-                        isSyncing = false,
-                        message = context.getString(R.string.access_folder_error)
-                    )
-                    delay(3000)
-                    _syncState.value = SyncState()
-                    return@launch
-                }
-
-                withContext(Dispatchers.IO) {
-                    syncApi.performSync(
-                        localFolder = musicFolder,
-                        onProgress = { current: Int, total: Int, message: String ->
-                            launch(Dispatchers.Main) {
-                                _syncState.value = SyncState(
-                                    isSyncing = true,
-                                    message = message,
-                                    progress = if (total > 0) current.toFloat() / total else 0f
-                                )
-                                Log.d("SyncProgress", "$current/$total: $message")
-                            }
-                        },
-                        onComplete = {
-                            val allTracks = trackRepository.getTracks()
-                            val filteredTracks = allTracks.filterBySelectedFolder(folderUriString)
-                            _trackList.value = filteredTracks.sortedBy(_trackSort.value, _trackSortOrder.value)
-                        },
-                        onTrackIdReceived = { fileHash, trackId ->
-                            launch(Dispatchers.Main) {
-                                updateTrackId(fileHash, trackId)
-                                Log.d("SyncApi", "Received trackId $trackId for hash $fileHash")
-                            }
-                        }
-                    )
-                }
-
-                _syncState.value = _syncState.value.copy(
-                    message = context.getString(R.string.synchronization_finished),
-                    progress = 1f
-                )
-                delay(2000)
-            } finally {
-                _syncState.value = SyncState(isSyncing = false)
-            }
-        }
-    }
-
-
-
-
     fun playTrackFromUri(uri: Uri) {
         viewModelScope.launch {
             _pendingTrackUris.send(uri)
@@ -1423,6 +1324,7 @@ class PlayerViewModel(
             )
         }
     }
+
     fun deleteTrack(track: Track, trackApi: TrackApi) {
         viewModelScope.launch {
             _deletionState.value = SyncState(
@@ -1435,7 +1337,6 @@ class PlayerViewModel(
                 var deleted = false
                 var serverDeleted = false
 
-                // Шаг 1: Вычисление хеша файла
                 val fileHash = try {
                     _deletionState.value = _deletionState.value.copy(
                         message = context.getString(R.string.calculating_hash),
@@ -1450,40 +1351,37 @@ class PlayerViewModel(
                     null
                 }
 
-                // Шаг 2: Получение ID из хранилища
-                val serverTrackId = fileHash?.let {
-                    trackIdStorage.getTrackId(it)
-                } ?: track.id
-
                 Log.d("DeleteTrack", "File hash calculated: $fileHash")
 
-                if (!serverTrackId.isNullOrBlank()) {
+                if (!fileHash.isNullOrBlank()) {
                     _deletionState.value = _deletionState.value.copy(
                         message = context.getString(R.string.deleting_from_server),
                         progress = 0.3f
                     )
 
                     try {
-                        trackApi.deleteTrack(serverTrackId)
+                        withContext(Dispatchers.IO) {
+                            trackApi.deleteTrack(fileHash)
+                        }
                         serverDeleted = true
                         Log.d("DeleteTrack", "Deleted from server: ${track.title}")
                     } catch (e: Exception) {
-                        // Если ваш TrackApi возвращает исключение с кодом ошибки
-                        val errorCode = (e as? IOException)?.message?.toIntOrNull()
-
-                        if (errorCode == 404) {
-                            Log.w("DeleteTrack", "Track not found on server (404), deleting locally")
-                            serverDeleted = false
-                        } else {
-                            Log.w("DeleteTrack", "Server delete failed for ${track.title}", e)
+                        when (e) {
+                            is io.grpc.StatusException -> {
+                                if (e.status.code == io.grpc.Status.Code.NOT_FOUND) {
+                                    Log.w("DeleteTrack", "Track not found on server (404), deleting locally")
+                                    serverDeleted = false
+                                } else {
+                                    Log.w("DeleteTrack", "Server delete failed: ${e.status}", e)
+                                }
+                            }
+                            else -> {
+                                Log.w("DeleteTrack", "Server delete failed for ${track.title}", e)
+                            }
                         }
                     }
-                } else {
-                    Log.w("DeleteTrack", "⚠️ У трека ${track.title} нет серверного ID. Пропускаем удаление с сервера.")
                 }
 
-
-                // Шаг 4: Удаление локального файла через SAF
                 _deletionState.value = _deletionState.value.copy(
                     message = context.getString(R.string.deleting_track, track.title ?: "Unknown"),
                     progress = 0.6f
@@ -1517,7 +1415,6 @@ class PlayerViewModel(
                     Log.d("DeleteTrack", "MediaStore delete: $rowsDeleted rows")
                 }
 
-                // Шаг 5: Удаление из хранилища ID
                 _deletionState.value = _deletionState.value.copy(
                     message = context.getString(R.string.cleaning_cache),
                     progress = 0.8f
@@ -1528,7 +1425,6 @@ class PlayerViewModel(
                     Log.d("DeleteTrack", "🗑️ Удален маппинг из хранилища: hash=$hash")
                 }
 
-                // Шаг 6: Обновление UI
                 _deletionState.value = _deletionState.value.copy(
                     message = context.getString(R.string.updating_track_list),
                     progress = 0.95f
@@ -1536,7 +1432,6 @@ class PlayerViewModel(
 
                 _trackList.value = _trackList.value.filter { it.uri != track.uri }
 
-                // Проверка на пустую папку
                 val selectedFolder = settings.extraScanFolders.value.firstOrNull()
                 val remainingTracksInFolder = _trackList.value.filterBySelectedFolder(selectedFolder)
 
@@ -1558,7 +1453,6 @@ class PlayerViewModel(
                     }
                 }
 
-                // Шаг 7: Финальное сообщение
                 _deletionState.value = _deletionState.value.copy(
                     message = context.getString(
                         if (serverDeleted) R.string.track_deleted
@@ -1590,7 +1484,6 @@ class PlayerViewModel(
         }
     }
 
-    // Вспомогательная функция для поиска файла в дереве
     private fun findFileInTree(folder: DocumentFile, fileName: String): DocumentFile? {
         folder.listFiles().forEach { file ->
             if (file.isFile && file.name == fileName) {
@@ -1603,10 +1496,6 @@ class PlayerViewModel(
         return null
     }
 
-
-
-
-
     fun onFolderPicked(path: String) {
         if (settings.isScanModeInclusive.value) {
             settings.updateExtraScanFolders(settings.extraScanFolders.value + path)
@@ -1617,9 +1506,8 @@ class PlayerViewModel(
 
     fun onLyricsPicked(lyrics: String) {
         _trackInfoSheetState.value.track?.let { track ->
-            val lyrics = try {
+            val lyricsObj = try {
                 val syncedLyrics = lyrics.toSyncedLyrics()
-
                 Lyrics(
                     uri = track.uri.toString(),
                     synced = syncedLyrics,
@@ -1634,12 +1522,12 @@ class PlayerViewModel(
                 )
             }
             viewModelScope.launch {
-                lyricsRepository.insertLyrics(lyrics)
+                lyricsRepository.insertLyrics(lyricsObj)
             }
 
             _lyricsControlSheetState.update {
                 it.copy(
-                    lyricsFromRepository = lyrics
+                    lyricsFromRepository = lyricsObj
                 )
             }
         }
@@ -1847,8 +1735,4 @@ class PlayerViewModel(
     private fun <T> List<T>.nextAfterOrNull(index: Int): T? {
         return getOrNull((index + 1) % size)
     }
-
-
-
 }
-// В вашем ViewModel добавьте:

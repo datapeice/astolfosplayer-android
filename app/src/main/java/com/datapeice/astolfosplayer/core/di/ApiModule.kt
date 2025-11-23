@@ -1,28 +1,38 @@
 package com.datapeice.astolfosplayer.core.di
 
 import com.datapeice.astolfosplayer.core.api.AuthApi
-import com.datapeice.astolfosplayer.core.api.KtorAuthApi
-import com.datapeice.astolfosplayer.core.api.KtorSyncApi
-import com.datapeice.astolfosplayer.core.api.KtorTrackApi
+import com.datapeice.astolfosplayer.core.api.GrpcAuthApi
+import com.datapeice.astolfosplayer.core.api.GrpcChannelProvider
+import com.datapeice.astolfosplayer.core.api.GrpcSyncApi
 import com.datapeice.astolfosplayer.core.api.SyncApi
-import com.datapeice.astolfosplayer.core.api.TrackApi
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val apiModule = module {
-    // API для аутентификации
-    single<AuthApi> { KtorAuthApi(httpClient = get()) }
+    // 1. Провайдер канала gRPC
+    single {
+        GrpcChannelProvider(
+            context = androidContext(),
+            settings = get()
+        )
+    }
 
-    // API для работы с треками
-    single<TrackApi> { KtorTrackApi(httpClient = get(), settings = get()) }
-
-    // API для синхронизации
-    single<SyncApi> {
-        KtorSyncApi(
-            httpClient = get(),
+    // 2. Auth API
+    single<AuthApi> {
+        GrpcAuthApi(
+            context = androidContext(),
             settings = get(),
-            trackApi = get(),
-            context = androidContext() // <-- ИСПРАВЛЕНО ЗДЕСЬ
+            channelProvider = get()
+        )
+    }
+
+    // 3. Sync API
+    single<SyncApi> {
+        GrpcSyncApi(
+            context = androidContext(),
+            settings = get(),
+            channelProvider = get(),
+            trackApi = get() // <--- ИСПРАВЛЕНО: Добавлена недостающая зависимость
         )
     }
 }

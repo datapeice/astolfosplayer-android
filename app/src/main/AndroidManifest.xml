@@ -20,6 +20,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MusicPlayer.Splash"
         android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true"
         tools:targetApi="31">
         <activity
             android:launchMode="singleTask"
